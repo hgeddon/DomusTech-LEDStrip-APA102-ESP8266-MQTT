@@ -4,10 +4,12 @@ This project shows a super easy way to get started using Digital LED strips with
 
 The code covered in this repository utilizes [Home Assistant's MQTT JSON Light Component](https://home-assistant.io/components/light.mqtt_json/) and an ESP8266 microcontroller. 
 
+#### Fork information
+The main goal of this fork is to update that code for the last revision of Home Assistant and make it work with APA102
+
 #### Supported Features Include
 - RGB Color Selection
 - Brightness 
-- Flash
 - Fade
 - Transitions
 - Effects with Animation Speed
@@ -51,25 +53,16 @@ Besides using the card in Home Assistant's user interface, you can also use the 
 
 Fade the Light On Over 5 Seconds - light.turn_on
 ```
-{"entity_id":"light.porch_strip",
+{"entity_id":"light.stairs_strip",
 "brightness":150,
 "color_name":"blue",
 "transition":"5"
 }
 ```
 
-Flash The Light - light.turn_on
-```
-{"entity_id":"light.porch_strip",
-"color_name":"green",
-"brightness":255,
-"flash":"short"
-}
-```
-
 Call Rainbow Effect with Slow Animation Speed - light.turn_on
 ```
-{"entity_id":"light.porch_strip",
+{"entity_id":"light.stairs_strip",
 "transition":"50",
 "brightness":255,
 "effect":"rainbow"
@@ -78,7 +71,7 @@ Call Rainbow Effect with Slow Animation Speed - light.turn_on
 
 Fade the Light Off Over 5 Seconds - light.turn_off
 ```
-{"entity_id":"light.porch_strip",
+{"entity_id":"light.stairs_strip",
 "transition":"50"
 }
 ```
