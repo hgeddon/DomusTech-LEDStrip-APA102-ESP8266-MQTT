@@ -8,7 +8,7 @@ mqtt:
 light:
   - platform: mqtt
     schema: json
-    name: "Strip Espaclier"
+    name: "Stairs Strip"
     state_topic: "bruh/stairs"
     command_topic: "bruh/stairs/set"
     effect: true
@@ -38,13 +38,13 @@ light:
 
 input_number:
   stairs_animation_speed:
-    name: Espaclier Animation Speed
+    name: Stairs Animation Speed
     initial: 150
     min: 1
     max: 150
     step: 10
 automation: 
-  - alias: "Espaclier Animation Speed"
+  - alias: "Stairs Animation Speed"
     initial_state: True
     hide_entity: False
     trigger:
