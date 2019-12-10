@@ -634,8 +634,8 @@ void loop() {
       FastLED.clear();
       FastLED.show();
     }
-    ledstart = random8(NUM_LEDS);           // Determine starting location of flash
-    ledlen = random8(NUM_LEDS - ledstart);  // Determine length of flash (not to go beyond NUM_LEDS-1)
+    ledstart = random16(NUM_LEDS);           // Determine starting location of flash
+    ledlen = random16(NUM_LEDS - ledstart);  // Determine length of flash (not to go beyond NUM_LEDS-1)
     for (int flashCounter = 0; flashCounter < random8(3, flashes); flashCounter++) {
       if (flashCounter == 0) dimmer = 5;    // the brightness of the leader is scaled down by a factor of 5
       else dimmer = random8(1, 3);          // return strokes are brighter than the leader
