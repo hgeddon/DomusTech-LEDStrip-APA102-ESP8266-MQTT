@@ -6,10 +6,11 @@ mqtt:
   password: YOURPASSWORD
 
 light:
-  - platform: mqtt_json
-    name: "Porch Strip"
-    state_topic: "bruh/porch"
-    command_topic: "bruh/porch/set"
+  - platform: mqtt
+    schema: json
+    name: "Strip Espaclier"
+    state_topic: "bruh/stairs"
+    command_topic: "bruh/stairs/set"
     effect: true
     effect_list:
       - bpm
@@ -31,28 +32,26 @@ light:
       - solid  
       - twinkle  
     brightness: true
-    flash: true
     rgb: true
     optimistic: false
     qos: 0
 
-input_slider:
-  porch_animation_speed:
-    name: Porch Animation Speed
+input_number:
+  stairs_animation_speed:
+    name: Espaclier Animation Speed
     initial: 150
     min: 1
     max: 150
     step: 10
-
 automation: 
-  - alias: "Porch Animation Speed"
+  - alias: "Espaclier Animation Speed"
     initial_state: True
     hide_entity: False
     trigger:
       - platform: state
-        entity_id: input_slider.porch_animation_speed
+        entity_id: input_number.stairs_animation_speed
     action:
       - service: mqtt.publish
         data_template:
-          topic: "bruh/porch/set"
+          topic: "bruh/stairs/set"
           payload: '{"transition":{{ trigger.to_state.state | int }}}'
