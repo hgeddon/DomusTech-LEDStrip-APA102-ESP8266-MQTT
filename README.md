@@ -7,6 +7,8 @@ The code covered in this repository utilizes [Home Assistant's MQTT JSON Light C
 #### Fork information
 The main goal of this fork is to update that code for the last revision of Home Assistant and make it work with APA102
 
+Added SPI Support, check [ESP8266 SPI #936](https://github.com/FastLED/FastLED/pull/936)
+
 #### Supported Features Include
 - RGB Color Selection
 - Brightness 

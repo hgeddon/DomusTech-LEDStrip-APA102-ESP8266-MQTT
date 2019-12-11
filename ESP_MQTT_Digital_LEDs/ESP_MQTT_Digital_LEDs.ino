@@ -19,7 +19,8 @@
       - PubSubClient
       - ArduinoJSON
 */
-
+#define ESP8266_SPI
+#define FASTLED_ALL_PINS_HARDWARE_SPI
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
@@ -70,7 +71,7 @@ const int BUFFER_SIZE = JSON_OBJECT_SIZE(10);
 #define DATA_PIN    7
 #define CLOCK_PIN 5
 #define CHIPSET     APA102
-#define COLOR_ORDER RGB
+#define COLOR_ORDER BGR
 
 byte realRed = 0;
 byte realGreen = 0;
@@ -79,7 +80,7 @@ byte realBlue = 0;
 byte red = 255;
 byte green = 255;
 byte blue = 255;
-byte brightness = 255;
+byte brightness = 50;
 
 
 
@@ -179,7 +180,7 @@ struct CRGB leds[NUM_LEDS];
 /********************************** START SETUP*****************************************/
 void setup() {
   Serial.begin(115200);
-  FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN>(leds, NUM_LEDS);
+  FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, NUM_LEDS);
 
   setupStripedPalette( CRGB::Red, CRGB::Red, CRGB::White, CRGB::White); //for CANDY CANE
   gPal = HeatColors_p; //for FIRE
@@ -306,12 +307,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 /********************************** START PROCESS JSON*****************************************/
 bool processJson(char* message) {
-  StaticJsonBuffer<BUFFER_SIZE> jsonBuffer;
+  DynamicJsonDocument root(1024);
 
-  JsonObject& root = jsonBuffer.parseObject(message);
+  auto error = deserializeJson(root, message);
 
-  if (!root.success()) {
-    Serial.println("parseObject() failed");
+  if (error) {
+    Serial.println("deserializeJson() failed");
     return false;
   }
 
@@ -385,7 +386,7 @@ bool processJson(char* message) {
     if (root.containsKey("color_temp")) {
       //temp comes in as mireds, need to convert to kelvin then to RGB
       int color_temp = root["color_temp"];
-      unsigned int kelvin  = MILLION / color_temp;
+      unsigned int kelvin  = 1000000 / color_temp;
       
       temp2rgb(kelvin);
       
@@ -417,12 +418,10 @@ bool processJson(char* message) {
 
 /********************************** START SEND STATE*****************************************/
 void sendState() {
-  StaticJsonBuffer<BUFFER_SIZE> jsonBuffer;
-
-  JsonObject& root = jsonBuffer.createObject();
+  DynamicJsonDocument root(1024);
 
   root["state"] = (stateOn) ? on_cmd : off_cmd;
-  JsonObject& color = root.createNestedObject("color");
+  JsonObject color = root.createNestedObject("color");
   color["r"] = red;
   color["g"] = green;
   color["b"] = blue;
@@ -431,8 +430,8 @@ void sendState() {
   root["effect"] = effectString.c_str();
 
 
-  char buffer[root.measureLength() + 1];
-  root.printTo(buffer, sizeof(buffer));
+  char buffer[measureJson(root) + 1];
+  serializeJson(root, buffer, measureJson(root) + 1);
 
   client.publish(light_state_topic, buffer, true);
 }
