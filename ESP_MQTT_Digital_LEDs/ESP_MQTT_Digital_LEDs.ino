@@ -25,7 +25,6 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include "FastLED.h"
-#include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
@@ -38,7 +37,10 @@ const char* mqtt_server = "your.MQTT.server.ip";
 const char* mqtt_username = "yourMQTTusername";
 const char* mqtt_password = "yourMQTTpassword";
 const int mqtt_port = 1883;
-
+//Visualizer
+#define BUFFER_LEN 2880
+unsigned int localPort = 7777;
+char packetBuffer[BUFFER_LEN];
 
 
 /**************************** FOR OTA **************************************************/
@@ -90,6 +92,7 @@ bool startFade = false;
 bool onbeforeflash = false;
 unsigned long lastLoop = 0;
 int transitionTime = 0;
+int delayMultiplier = 1;
 int effectSpeed = 0;
 bool inFade = false;
 int loopCount = 0;
@@ -174,8 +177,46 @@ uint8_t gHue = 0;
 WiFiClient espClient;
 PubSubClient client(espClient);
 struct CRGB leds[NUM_LEDS];
+WiFiUDP port;
 
+/********************************** GRADIENTS*****************************************/
 
+// Gradient palette "bhw2_xmas_gp", originally from
+// http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw2/tn/bhw2_xmas.png.index.html
+// converted for FastLED with gammas (2.6, 2.2, 2.5)
+// Size: 48 bytes of program space.
+
+DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp ) {
+    0,   0, 12,  0,
+   40,   0, 55,  0,
+   66,   1,117,  2,
+   77,   1, 84,  1,
+   81,   0, 55,  0,
+  119,   0, 12,  0,
+  153,  42,  0,  0,
+  181, 121,  0,  0,
+  204, 255, 12,  8,
+  224, 121,  0,  0,
+  244,  42,  0,  0,
+  255,  42,  0,  0};
+
+// Gradient palette "xmas_04_gp", originally from
+// http://soliton.vm.bytemark.co.uk/pub/cpt-city/ma/xmas/tn/xmas_04.png.index.html
+// converted for FastLED with gammas (2.6, 2.2, 2.5)
+// Size: 8 bytes of program space.
+
+DEFINE_GRADIENT_PALETTE( xmas_04_gp ) {
+    0, 234,223,205,
+  255,  87,144,155};
+
+// Gradient palette "xmas_08_gp", originally from
+// http://soliton.vm.bytemark.co.uk/pub/cpt-city/ma/xmas/tn/xmas_08.png.index.html
+// converted for FastLED with gammas (2.6, 2.2, 2.5)
+// Size: 8 bytes of program space.
+
+DEFINE_GRADIENT_PALETTE( xmas_08_gp ) {
+    0,   2,  6, 14,
+  255, 227,244,210};
 
 /********************************** START SETUP*****************************************/
 void setup() {
@@ -188,6 +229,8 @@ void setup() {
   setup_wifi();
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+  //Visualizer
+  port.begin(localPort);
 
   //OTA SETUP
   ArduinoOTA.setPort(OTAport);
@@ -227,7 +270,7 @@ void setup() {
 
 /********************************** START SETUP WIFI*****************************************/
 void setup_wifi() {
-
+  wifi_set_phy_mode(PHY_MODE_11B);
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -484,7 +527,22 @@ void setColor(int inR, int inG, int inB) {
 
 /********************************** START MAIN LOOP*****************************************/
 void loop() {
-
+      // Read data over socket
+      int packetSize = port.parsePacket();
+      // If packets have been received, interpret the command
+      if (packetSize) {
+          int len = port.read(packetBuffer, BUFFER_LEN);
+          for(int i = 0; i < len; i+=5) {
+              packetBuffer[len] = 0;
+              int N = ((packetBuffer[i] << 8)+packetBuffer[i+1]);
+              leds[N] = CRGB((uint8_t)packetBuffer[i+2], (uint8_t)packetBuffer[i+3], (uint8_t)packetBuffer[i+4]);
+          } 
+          FastLED.show();
+      }else{
+        effects();
+      }
+}
+void effects() {
   if (!client.connected()) {
     reconnect();
   }
@@ -812,6 +870,40 @@ void loop() {
       showleds();
     }
 
+    //GRADIENTS
+    if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+      static uint8_t startIndex = 0;
+      startIndex = startIndex + floor(transitionTime / 10);
+      CRGBPalette16 palette = bhw2_xmas_gp;
+      fill_palette( leds, NUM_LEDS, startIndex, 3, palette, 255, LINEARBLEND);
+      if (transitionTime == 0 or transitionTime == NULL) {
+        transitionTime = 30;
+      }
+      delayMultiplier = 1;
+      showleds();  
+    }
+    if (effectString == "Christmas cold") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+      static uint8_t startIndex = 0;
+      startIndex = startIndex + floor(transitionTime / 10);
+      CRGBPalette16 palette = xmas_04_gp;
+      fill_palette( leds, NUM_LEDS, startIndex, 3, palette, 255, LINEARBLEND);
+      if (transitionTime == 0 or transitionTime == NULL) {
+        transitionTime = 30;
+      }
+      delayMultiplier = 1;
+      showleds();  
+    }
+    if (effectString == "Christmas cold2") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+      static uint8_t startIndex = 0;
+      startIndex = startIndex + floor(transitionTime / 10);
+      CRGBPalette16 palette = xmas_08_gp;
+      fill_palette( leds, NUM_LEDS, startIndex, 3, palette, 255, LINEARBLEND);
+      if (transitionTime == 0 or transitionTime == NULL) {
+        transitionTime = 30;
+      }
+      delayMultiplier = 1;
+      showleds();  
+    }
   }
 
 
@@ -1045,7 +1137,7 @@ void showleds() {
     FastLED.setBrightness(brightness);  //EXECUTE EFFECT COLOR
     FastLED.show();
     if (transitionTime > 0 && transitionTime < 130) {  //Sets animation speed based on receieved value
-      FastLED.delay(1000 / transitionTime);
+      FastLED.delay(transitionTime / 10 * delayMultiplier);
       //delay(10*transitionTime);
     }
   }
