@@ -8,8 +8,11 @@ The code covered in this repository utilizes [Home Assistant's MQTT JSON Light C
 The main goal of this fork is to update that code for the last revision of Home Assistant and make it work with APA102
 
 Added SPI Support, check [ESP8266 SPI #936](https://github.com/FastLED/FastLED/pull/936)
+
 Added a visualizer effect that work by receiving RAW pixel from UDP socket, those packets are sent by a python code, see [Audio Reactive LED Strip](https://github.com/scottlawsonbc/audio-reactive-led-strip)
-Added web configurator, when no setted up the ESP8266 create a Wifi AP and host a configuration web page, when the builtin led start to flash rapidly you can connect to the network (default name DomusTech-LED) an go to [192.168.4.1](http://192.168.4.1) to set up all variables, you can reset those settings by pushing the flash builtin button of the NodeMCU (GPIO0, D3)
+
+Added web configurator, when no setted up the ESP8266 create a Wifi AP and host a configuration web page, when the builtin led start to
+flash rapidly you can connect to the network (default name DomusTech-LED) an go to [192.168.4.1](http://192.168.4.1) to set up all variables, you can reset those settings by pushing the flash builtin button of the NodeMCU (GPIO0, D3)
 
 #### Supported Features Include
 - RGB Color Selection
