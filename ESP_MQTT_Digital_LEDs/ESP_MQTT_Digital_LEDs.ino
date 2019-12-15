@@ -6,69 +6,57 @@
   |  |_)  | |  |\  \-.|  `--'  | |  |  |  |     /  _____  \ |  `--'  |     |  |     |  `--'  | |  |  |  |  /  _____  \   |  |     |  | |  `--'  | |  |\   |
   |______/  | _| `.__| \______/  |__|  |__|    /__/     \__\ \______/      |__|      \______/  |__|  |__| /__/     \__\  |__|     |__|  \______/  |__| \__|
 
-     __  __           _ _  __ _          _   _              ______   __ _    _   _ _        _    ____ ____   _   _ _____ _____ 
-    |  \/  | ___   __| (_)/ _(_) ___  __| | | |__  _   _   / ___\ \ / // \  | \ | | |      / \  | __ ) ___| | \ | | ____|_   _|
-    | |\/| |/ _ \ / _` | | |_| |/ _ \/ _` | | '_ \| | | | | |    \ V // _ \ |  \| | |     / _ \ |  _ \___ \ |  \| |  _|   | |  
-    | |  | | (_) | (_| | |  _| |  __/ (_| | | |_) | |_| | | |___  | |/ ___ \| |\  | |___ / ___ \| |_) |__) || |\  | |___  | |  
-    |_|  |_|\___/ \__,_|_|_| |_|\___|\__,_| |_.__/ \__, |  \____| |_/_/   \_\_| \_|_____/_/   \_\____/____(_)_| \_|_____| |_|  
-                                                    |___/                                                    
-  VERSION 1.0
-                                                                                                                                                    
-  This is a modified and combined version created by Fma965, it gathers many effects found around the internet including Bruhs, Bkpsu and The-Red-Team. Most of the credit goes to Bruh for the base code.
-  - https://github.com/bruhautomation/ESP-MQTT-JSON-Digital-LEDs/blob/master/ESP_MQTT_Digital_LEDs/ESP_MQTT_Digital_LEDs.ino
-  - https://github.com/bkpsu/ESP-MQTT-JSON-Digital-LEDs/blob/master/ESP_MQTT_Digital_LEDs/ESP_MQTT_Digital_LEDs_w_JSON.ino
-  - https://github.com/the-red-team/Arduino-FastLED-Music-Visualizer/blob/master/music_visualizer.ino
-
-  - You can find all information relating to this script at https://github.com/cyanlabs/ESP-MQTT-JSON-Digital-LEDs
-  
   Thanks much to @corbanmailloux for providing a great framework for implementing flash/fade with HomeAssistant https://github.com/corbanmailloux/esp-mqtt-rgb-led
-  
-  To use this code you will need the following dependancies: 
-  
-  - Support for the ESP8266 boards. 
+
+  To use this code you will need the following dependancies:
+
+  - Support for the ESP8266 boards.
         - You can add it to the board manager by going to File -> Preference and pasting http://arduino.esp8266.com/stable/package_esp8266com_index.json into the Additional Board Managers URL field.
         - Next, download the ESP8266 dependancies by going to Tools -> Board -> Board Manager and searching for ESP8266 and installing it.
-  
-  - You will also need to download the follow libraries by going to Sketch -> Include Libraries -> Manage Libraries
-      - FastLED 
-      - PubSubClient
-      - ArduinoJSON (5.12.0)
 
-  - You will need to connect the Addressable RGB strip to Pin D3 on the NodeMCU or change the pin definition below.
-  - You can use a microphone or directly wire the output of the a speaker port on a amp to your NodeMCU, wire GND (black speaker wire) to a GND and the Possitive (usually red speaker wire) to A0 on the NodeMCU
-  - For a list of the effects that can be used check GitHub
+  - You will also need to download the follow libraries by going to Sketch -> Include Libraries -> Manage Libraries
+      - FastLED
+      - PubSubClient
+      - ArduinoJSON
 */
 
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
-
+#define ESP8266_SPI
+#define FASTLED_ALL_PINS_HARDWARE_SPI
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include "FastLED.h"
-#include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266WebServer.h>
+#include <EEPROM.h>
+struct {
+  char ssid[32] = "";
+  char password[64] = "";
+  char name[32] = "";
+  char OTApassword[64] = "";
+  char mqtt_server[32] = "";
+  char mqtt_username[32] = "";
+  char mqtt_password[64] = "";
+} config;
 
 /************ WIFI and MQTT Information (CHANGE THESE FOR YOUR SETUP) ******************/
-const char* ssid = "SSID"; //type your WIFI information inside the quotes
-const char* password = "WIFIPASSWORD"; //
-const char* mqtt_server = "10.0.0.2";
-const char* mqtt_username = "homeassistant";
-const char* mqtt_password = "MQTTPASSWORD";
 const int mqtt_port = 1883;
+//Visualizer
+#define BUFFER_LEN 2880
+unsigned int localPort = 7777;
+char packetBuffer[BUFFER_LEN];
 
+//Establishing Local server at port 80 whenever required
+ESP8266WebServer server(80);
+int statusCode;
+String st;
+String content;
 
 /**************************** FOR OTA **************************************************/
-#define SENSORNAME "RGBStrip" //change this to whatever you want to call your device
-
-#define OTApassword "OTAPassword" //the password you will need to enter to upload remotely via the ArduinoIDE
 int OTAport = 8266;
-
-/************* MQTT TOPICS (change these topics as you wish)  **************************/
-const char* light_state_topic = "home/RGBStrip1";
-const char* light_set_topic = "home/RGBStrip1/set";
-const char* light_set_topic_group = "home/LEDStrip_Group1/set";
-const char* LWT_topic = "home/RGBStrip1/LWT";
 
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
@@ -76,17 +64,20 @@ const char* effect = "solid";
 String effectString = "solid";
 String oldeffectString = "solid";
 
+
+
 /****************************************FOR JSON***************************************/
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(10);
 #define MQTT_MAX_PACKET_SIZE 512
 
-/*********************************** FastLED Defintions ********************************/
-#define NUM_LEDS    64
 
-#define DATA_PIN    3
-//#define CLOCK_PIN 5
-#define CHIPSET     WS2811
-#define COLOR_ORDER BRG
+
+/*********************************** FastLED Defintions ********************************/
+#define NUM_LEDS    576
+#define DATA_PIN    7
+#define CLOCK_PIN 5
+#define CHIPSET     APA102
+#define COLOR_ORDER BGR
 
 byte realRed = 0;
 byte realGreen = 0;
@@ -95,7 +86,7 @@ byte realBlue = 0;
 byte red = 255;
 byte green = 255;
 byte blue = 255;
-byte brightness = 255;
+byte brightness = 50;
 
 /**************************** MUSIC VISUALIZER **************************************************/
 #define UPDATES_PER_SECOND 100
@@ -125,15 +116,16 @@ long post_react = 0; // OLD SPIKE CONVERSION
 // Size: 36 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw2_thanks_gp ) {
-    0,   9,  5,  1,
-   48,  25,  9,  1,
-   76, 137, 27,  1,
-   96,  98, 42,  1,
+  0,   9,  5,  1,
+  48,  25,  9,  1,
+  76, 137, 27,  1,
+  96,  98, 42,  1,
   124, 144, 79,  1,
   153,  98, 42,  1,
   178, 137, 27,  1,
   211,  23,  9,  1,
-  255,   9,  5,  1};
+  255,   9,  5,  1
+};
 
 // Gradient palette "bhw2_redrosey_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw2/tn/bhw2_redrosey.png.index.html
@@ -141,14 +133,15 @@ DEFINE_GRADIENT_PALETTE( bhw2_thanks_gp ) {
 // Size: 32 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw2_redrosey_gp ) {
-    0, 103,  1, 10,
-   33, 109,  1, 12,
-   76, 159,  5, 48,
-  119, 175, 55,103,
-  127, 175, 55,103,
+  0, 103,  1, 10,
+  33, 109,  1, 12,
+  76, 159,  5, 48,
+  119, 175, 55, 103,
+  127, 175, 55, 103,
   178, 159,  5, 48,
   221, 109,  1, 12,
-  255, 103,  1, 10};
+  255, 103,  1, 10
+};
 
 // Gradient palette "bluered_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/h5/tn/bluered.png.index.html
@@ -156,9 +149,10 @@ DEFINE_GRADIENT_PALETTE( bhw2_redrosey_gp ) {
 // Size: 12 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bluered_gp ) {
-    0,   0,  0,255,
-  127, 255,255,255,
-  255, 255,  0,  0};
+  0,   0,  0, 255,
+  127, 255, 255, 255,
+  255, 255,  0,  0
+};
 
 // Gradient palette "bhw2_xmas_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw2/tn/bhw2_xmas.png.index.html
@@ -166,18 +160,19 @@ DEFINE_GRADIENT_PALETTE( bluered_gp ) {
 // Size: 48 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp ) {
-    0,   0, 12,  0,
-   40,   0, 55,  0,
-   66,   1,117,  2,
-   77,   1, 84,  1,
-   81,   0, 55,  0,
+  0,   0, 12,  0,
+  40,   0, 55,  0,
+  66,   1, 117,  2,
+  77,   1, 84,  1,
+  81,   0, 55,  0,
   119,   0, 12,  0,
   153,  42,  0,  0,
   181, 121,  0,  0,
   204, 255, 12,  8,
   224, 121,  0,  0,
   244,  42,  0,  0,
-  255,  42,  0,  0};
+  255,  42,  0,  0
+};
 
 // Gradient palette "bhw2_xc_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw2/tn/bhw2_xc.png.index.html
@@ -185,13 +180,14 @@ DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp ) {
 // Size: 28 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw2_xc_gp ) {
-    0,   4,  2,  9,
-   58,  16,  0, 47,
+  0,   4,  2,  9,
+  58,  16,  0, 47,
   122,  24,  0, 16,
   158, 144,  9,  1,
   183, 179, 45,  1,
-  219, 220,114,  2,
-  255, 234,237,  1};
+  219, 220, 114,  2,
+  255, 234, 237,  1
+};
 
 // Gradient palette "bhw1_04_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw1/tn/bhw1_04.png.index.html
@@ -199,11 +195,12 @@ DEFINE_GRADIENT_PALETTE( bhw2_xc_gp ) {
 // Size: 20 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw1_04_gp ) {
-    0, 229,227,  1,
-   15, 227,101,  3,
+  0, 229, 227,  1,
+  15, 227, 101,  3,
   142,  40,  1, 80,
   198,  17,  1, 79,
-  255,   0,  0, 45};
+  255,   0,  0, 45
+};
 
 // Gradient palette "bhw4_051_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw4/tn/bhw4_051.png.index.html
@@ -216,12 +213,12 @@ DEFINE_GRADIENT_PALETTE( bhw1_04_gp ) {
 // Size: 56 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( fs2006_gp ) {
-    0,   0, 49,  5,
-   34,   0, 49,  5,
-   34,  79,168, 66,
-   62,  79,168, 66,
-   62, 252,168, 92,
-  103, 252,168, 92,
+  0,   0, 49,  5,
+  34,   0, 49,  5,
+  34,  79, 168, 66,
+  62,  79, 168, 66,
+  62, 252, 168, 92,
+  103, 252, 168, 92,
   103, 234, 81, 29,
   143, 234, 81, 29,
   143, 222, 30,  1,
@@ -229,19 +226,21 @@ DEFINE_GRADIENT_PALETTE( fs2006_gp ) {
   184,  90, 13,  1,
   238,  90, 13,  1,
   238, 210,  1,  1,
-  255, 210,  1,  1};
+  255, 210,  1,  1
+};
 
 
 DEFINE_GRADIENT_PALETTE( bhw4_051_gp ) {
-    0,   1,  1,  4,
-   28,  16, 24, 77,
-   66,  35, 87,160,
-  101, 125,187,205,
-  127, 255,233, 13,
-  145, 125,187,205,
-  193,  28, 70,144,
+  0,   1,  1,  4,
+  28,  16, 24, 77,
+  66,  35, 87, 160,
+  101, 125, 187, 205,
+  127, 255, 233, 13,
+  145, 125, 187, 205,
+  193,  28, 70, 144,
   224,  14, 19, 62,
-  255,   1,  1,  4};
+  255,   1,  1,  4
+};
 
 // Gradient palette "blue_g2_5_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/go2/webtwo/tn/blue-g2-5.png.index.html
@@ -249,10 +248,11 @@ DEFINE_GRADIENT_PALETTE( bhw4_051_gp ) {
 // Size: 16 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( blue_g2_5_gp ) {
-    0,   2,  6, 63,
+  0,   2,  6, 63,
   127,   2,  9, 67,
   255,   255, 255, 115,
-  255,   255, 255, 0};
+  255,   255, 255, 0
+};
 
 // Gradient palette "bhw3_41_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw3/tn/bhw3_41.png.index.html
@@ -260,27 +260,28 @@ DEFINE_GRADIENT_PALETTE( blue_g2_5_gp ) {
 // Size: 36 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw3_41_gp ) {
-    0,   0,  0, 45,
-   71,   7, 12,255,
-   76,  75, 91,255,
-   76, 255,255,255,
-   81, 255,255,255,
-  178, 255,255,255,
+  0,   0,  0, 45,
+  71,   7, 12, 255,
+  76,  75, 91, 255,
+  76, 255, 255, 255,
+  81, 255, 255, 255,
+  178, 255, 255, 255,
   179, 255, 55, 45,
   196, 255,  0,  0,
-  255,  42,  0,  0};
+  255,  42,  0,  0
+};
 
 DEFINE_GRADIENT_PALETTE( test_gp ) {
-    0,  255,  0,  0, // Red
-// 32,  171, 85,  0, // Orange
-// 64,  171,171,  0, // Yellow
-// 96,    0,255,  0, // Green
-//128,    0,171, 85, // Aqua
-  160,    0,  0,255, // Blue
-//192,   85,  0,171, // Purple
-//224,  171,  0, 85, // Pink
-//255,  255,  0,  0};// and back to Red
-};  
+  0,  255,  0,  0, // Red
+  // 32,  171, 85,  0, // Orange
+  // 64,  171,171,  0, // Yellow
+  // 96,    0,255,  0, // Green
+  //128,    0,171, 85, // Aqua
+  160,    0,  0, 255, // Blue
+  //192,   85,  0,171, // Purple
+  //224,  171,  0, 85, // Pink
+  //255,  255,  0,  0};// and back to Red
+};
 
 // Gradient palette "bhw2_greenman_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw2/tn/bhw2_greenman.png.index.html
@@ -288,18 +289,20 @@ DEFINE_GRADIENT_PALETTE( test_gp ) {
 // Size: 12 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw2_greenman_gp ) {
-    0,   1, 22,  1,
-  130,   1,168,  2,
-  255,   1, 22,  1};
+  0,   1, 22,  1,
+  130,   1, 168,  2,
+  255,   1, 22,  1
+};
 
-// Gradient palette "PSU_gp" 
+// Gradient palette "PSU_gp"
 // converted for FastLED with gammas (2.6, 2.2, 2.5)
 // Size: 12 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( PSU_gp ) {
-    0,   4, 30, 66,
+  0,   4, 30, 66,
   127,  30, 64, 124,
-  255, 255,255,255};
+  255, 255, 255, 255
+};
 
 // Gradient palette "Orange_to_Purple_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/ds/icons/tn/Orange-to-Purple.png.index.html
@@ -307,9 +310,10 @@ DEFINE_GRADIENT_PALETTE( PSU_gp ) {
 // Size: 12 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( Orange_to_Purple_gp ) {
-    0, 208, 50,  1,
+  0, 208, 50,  1,
   127, 146, 27, 45,
-  255,  97, 12,178};
+  255,  97, 12, 178
+};
 
 /* END PALETTE DEFINITIONS */
 
@@ -334,6 +338,8 @@ byte flashRed = red;
 byte flashGreen = green;
 byte flashBlue = blue;
 byte flashBrightness = brightness;
+
+
 
 /********************************** GLOBALS for EFFECTS ******************************/
 //RAINBOW
@@ -392,7 +398,7 @@ int thissat = 255;           //-FX LOOPS DELAY VAR
 
 uint8_t thishuepolice = 0;
 uint8_t thishuehail = 183;
-uint8_t thishueLovey = 0;    
+uint8_t thishueLovey = 0;
 
 int antipodal_index(int i) {
   int iN = i + TOP_INDEX;
@@ -414,7 +420,7 @@ uint8_t gHue = 0;
 int toggle = 0;
 
 //RANDOM STARS
-const int NUM_STARS = NUM_LEDS/10;
+const int NUM_STARS = NUM_LEDS / 10;
 static int stars[NUM_STARS];
 
 //SINE HUE
@@ -424,13 +430,16 @@ int led_index = 0;
 WiFiClient espClient;
 PubSubClient client(espClient);
 struct CRGB leds[NUM_LEDS];
+WiFiUDP port;
 
-
-
+int LED_state = HIGH;
 /********************************** START SETUP*****************************************/
 void setup() {
+  pinMode(0, INPUT_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
   Serial.begin(115200);
-  FastLED.addLeds<CHIPSET, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+  FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, NUM_LEDS);
 
   setupStripedPalette( CRGB::Red, CRGB::Red, CRGB::White, CRGB::White); //for CANDY CANE
   setupThxPalette( CRGB::OrangeRed, CRGB::Olive, CRGB::Maroon, CRGB::Maroon); //for Thanksgiving
@@ -438,20 +447,22 @@ void setup() {
   setupHalloweenPalette( CRGB::DarkOrange, CRGB::DarkOrange, CRGB::Indigo, CRGB::Indigo); //for Halloween
   setupHJPalette( CRGB::Red, CRGB::Red, CRGB::Green, CRGB::Green); //for Holly Jolly
   setupIndPalette( CRGB::FireBrick, CRGB::Cornsilk, CRGB::MediumBlue, CRGB::MediumBlue); //for Independence
-  
+
   gPal = HeatColors_p; //for FIRE
 
   setup_wifi();
-  client.setServer(mqtt_server, mqtt_port);
+  client.setServer(config.mqtt_server, mqtt_port);
   client.setCallback(callback);
+  //Visualizer
+  port.begin(localPort);
 
   //OTA SETUP
   ArduinoOTA.setPort(OTAport);
   // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname(SENSORNAME);
+  ArduinoOTA.setHostname(config.name);
 
   // No authentication by default
-  ArduinoOTA.setPassword((const char *)OTApassword);
+  ArduinoOTA.setPassword(config.OTApassword);
 
   ArduinoOTA.onStart([]() {
     Serial.println("Starting");
@@ -473,32 +484,61 @@ void setup() {
   ArduinoOTA.begin();
 
   Serial.println("Ready");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  digitalWrite(LED_BUILTIN, LOW);
+
 }
 
+//To include in all infinite loop that can lock the device
+void handle_input() {
+  int buttonState = digitalRead(0) ;
 
+  if (buttonState != HIGH)
+    reset_config();
+}
 
-
+void led_flash() {
+  LED_state = !LED_state;
+  digitalWrite(LED_BUILTIN, LED_state);
+}
 /********************************** START SETUP WIFI*****************************************/
 void setup_wifi() {
-
   delay(10);
+  Serial.println("Disconnecting previously connected WiFi");
+  WiFi.disconnect();
+  EEPROM.begin(sizeof (config)); //Initialasing EEPROM
+  EEPROM.get(0, config);
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
-  
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  Serial.println(config.ssid);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(config.ssid, config.password);
+
+  if (testWifi())
+  {
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+    return;
+  }
+  else
+  {
+    Serial.println("Turning the HotSpot On");
+    launchWeb();
+    setupAP();// Setup HotSpot
   }
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(100);
+    server.handleClient();
+    handle_input();
+    led_flash();
+  }
 }
 
 /*
@@ -519,7 +559,7 @@ void setup_wifi() {
 
 
 /********************************** START CALLBACK*****************************************/
-void callback(char* topic, byte* payload, unsigned int length) {
+void callback(char* topic, byte * payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -548,7 +588,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     realBlue = 0;
   }
 
-  //Serial.println(effect);
+  Serial.println(effect);
 
   startFade = true;
   inFade = false; // Kill the current fade
@@ -560,12 +600,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 /********************************** START PROCESS JSON*****************************************/
 bool processJson(char* message) {
-  StaticJsonBuffer<BUFFER_SIZE> jsonBuffer;
+  DynamicJsonDocument root(1024);
 
-  JsonObject& root = jsonBuffer.parseObject(message);
+  auto error = deserializeJson(root, message);
 
-  if (!root.success()) {
-    Serial.println("parseObject() failed");
+  if (error) {
+    Serial.println("deserializeJson() failed");
     return false;
   }
 
@@ -609,8 +649,8 @@ bool processJson(char* message) {
       twinklecounter = 0; //manage twinklecounter
     }
 
-    if (root.containsKey("white_value")) {
-      transitionTime = map(root["white_value"], 0, 255, 1, 150);
+    if (root.containsKey("transition")) {
+      transitionTime = root["transition"];
     }
     else if ( effectString == "solid") {
       transitionTime = 0;
@@ -635,14 +675,14 @@ bool processJson(char* message) {
       green = root["color"]["g"];
       blue = root["color"]["b"];
     }
-    
+
     if (root.containsKey("color_temp")) {
       //temp comes in as mireds, need to convert to kelvin then to RGB
       int color_temp = root["color_temp"];
-      unsigned int kelvin  = 1000000 / color_temp; //MILLION / color_temp;
-      
+      unsigned int kelvin  = 1000000 / color_temp;
+
       temp2rgb(kelvin);
-      
+
     }
 
     if (root.containsKey("brightness")) {
@@ -655,12 +695,13 @@ bool processJson(char* message) {
       twinklecounter = 0; //manage twinklecounter
     }
 
-    if (root.containsKey("white_value")) {
-      transitionTime = map(root["white_value"], 0, 255, 1, 150);
+    if (root.containsKey("transition")) {
+      transitionTime = root["transition"];
     }
     else if ( effectString == "solid") {
       transitionTime = 0;
     }
+
   }
 
   return true;
@@ -670,37 +711,40 @@ bool processJson(char* message) {
 
 /********************************** START SEND STATE*****************************************/
 void sendState() {
-  StaticJsonBuffer<BUFFER_SIZE> jsonBuffer;
-
-  JsonObject& root = jsonBuffer.createObject();
+  DynamicJsonDocument root(1024);
 
   root["state"] = (stateOn) ? on_cmd : off_cmd;
-  JsonObject& color = root.createNestedObject("color");
+  JsonObject color = root.createNestedObject("color");
   color["r"] = red;
   color["g"] = green;
   color["b"] = blue;
 
   root["brightness"] = brightness;
   root["effect"] = effectString.c_str();
-  root["white_value"] = map(transitionTime, 1,150, 0, 255);
 
-  char buffer[root.measureLength() + 1];
-  root.printTo(buffer, sizeof(buffer));
 
-  client.publish(light_state_topic, buffer, true);
+  char buffer[measureJson(root) + 1];
+  serializeJson(root, buffer, measureJson(root) + 1);
+  char* endpoint    = new char[sizeof("domustech/") + strlen(config.name)];
+  sprintf(endpoint, "domustech/%s", config.name);
+  client.publish(endpoint, buffer, true);
 }
+
+
 
 /********************************** START RECONNECT*****************************************/
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
+    handle_input();
+    led_flash();
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect(SENSORNAME, mqtt_username, mqtt_password, LWT_topic, 0, 1, "offline")) {
+    if (client.connect(config.name, config.mqtt_username, config.mqtt_password)) {
       Serial.println("connected");
-      client.subscribe(light_set_topic);
-      client.subscribe(light_set_topic_group);
-      client.publish(LWT_topic, "online", true);
+      char* endpoint    = new char[sizeof("domustech/") + strlen(config.name) + strlen("/set")];
+      sprintf(endpoint, "domustech/%s/set", config.name);
+      client.subscribe(endpoint);
       setColor(0, 0, 0);
       sendState();
     } else {
@@ -711,7 +755,10 @@ void reconnect() {
       delay(5000);
     }
   }
+  digitalWrite(LED_BUILTIN, HIGH);
 }
+
+
 
 /********************************** START Set Color*****************************************/
 void setColor(int inR, int inG, int inB) {
@@ -732,9 +779,28 @@ void setColor(int inR, int inG, int inB) {
   Serial.println(inB);
 }
 
+
+
 /********************************** START MAIN LOOP*****************************************/
 void loop() {
-
+  handle_input();
+  digitalWrite(LED_BUILTIN, HIGH); //Tempory there because the LED stay on even when setup is end
+  // Read data over socket
+  int packetSize = port.parsePacket();
+  // If packets have been received, interpret the command
+  if (packetSize) {
+    int len = port.read(packetBuffer, BUFFER_LEN);
+    for (int i = 0; i < len; i += 5) {
+      packetBuffer[len] = 0;
+      int N = ((packetBuffer[i] << 8) + packetBuffer[i + 1]);
+      leds[N] = CRGB((uint8_t)packetBuffer[i + 2], (uint8_t)packetBuffer[i + 3], (uint8_t)packetBuffer[i + 4]);
+    }
+    FastLED.show();
+  } else {
+    effects();
+  }
+}
+void effects() {
   if (!client.connected()) {
     reconnect();
   }
@@ -746,92 +812,94 @@ void loop() {
     return;
   }
 
+
+
   client.loop();
 
   ArduinoOTA.handle();
 
-/////////////////////////////////////////  
-//////Music Visualizer//////////////
-///////////////////////////////////////
+  /////////////////////////////////////////
+  //////Music Visualizer//////////////
+  ///////////////////////////////////////
 
   // Left to Right
-  if(effectString == "Music - L2R") {
-      visualize_music(1);
+  if (effectString == "Music - L2R") {
+    visualize_music(1);
   }
   // Middle Out
-  if(effectString == "Music - Middle") {
-      visualize_music(2);
+  if (effectString == "Music - Middle") {
+    visualize_music(2);
   }
   // Custom for Fma965
-  if(effectString == "Music - Fma965") {
-      visualize_music(3);
+  if (effectString == "Music - Fma965") {
+    visualize_music(3);
   }
   // Out to Middle
-  if(effectString == "Music - LR2M") {
-      visualize_music(4);
+  if (effectString == "Music - LR2M") {
+    visualize_music(4);
   }
 
-/////////////////////////////////////////  
-//////DrZzs custom effects//////////////
-///////////////////////////////////////
+  /////////////////////////////////////////
+  //////DrZzs custom effects//////////////
+  ///////////////////////////////////////
 
-  if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+  if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_xmas_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
-  
-  if (effectString == "St Patty") {                                  // colored stripes pulsing in Shades of GREEN 
+    showleds();
+  }
+
+  if (effectString == "St Patty") {                                  // colored stripes pulsing in Shades of GREEN
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_greenman_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
-  if (effectString == "Valentine") {                                  // colored stripes pulsing in Shades of PINK and RED 
+  if (effectString == "Valentine") {                                  // colored stripes pulsing in Shades of PINK and RED
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_redrosey_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
-  if (effectString == "Turkey Day") {                                  // colored stripes pulsing in Shades of Brown and ORANGE 
+  if (effectString == "Turkey Day") {                                  // colored stripes pulsing in Shades of Brown and ORANGE
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_thanks_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
-  if (effectString == "Thanksgiving") {                                  // colored stripes pulsing in Shades of Red and ORANGE and Green 
+  if (effectString == "Thanksgiving") {                                  // colored stripes pulsing in Shades of Red and ORANGE and Green
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
 
@@ -842,22 +910,22 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
-  
-  if (effectString == "USA") {                                  // colored stripes pulsing in Shades of Red White & Blue 
+    showleds();
+  }
+
+  if (effectString == "USA") {                                  // colored stripes pulsing in Shades of Red White & Blue
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw3_41_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
   if (effectString == "Independence") {                        // colored stripes of Red White & Blue
     static uint8_t startIndex = 0;
@@ -870,37 +938,37 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
 
   if (effectString == "Halloween") {                                  // colored stripes pulsing in Shades of Purple and Orange
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = Orange_to_Purple_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
   if (effectString == "Go Lions") {                                  // colored stripes pulsing in Shades of <strike>Maize and</strike> Blue & White (FTFY DrZZZ :-P)
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = PSU_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
-  }
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
+    showleds();
+  }
 
   if (effectString == "Hail") {
     static uint8_t startIndex = 0;
@@ -913,9 +981,9 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
-}
-  
+    showleds();
+  }
+
   if (effectString == "Touchdown") {                 //<strike>Maize and</strike> Blue & White with POLICE ALL animation
     idex++;
     if (idex >= NUM_LEDS) {
@@ -930,7 +998,7 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
+    showleds();
   }
 
   if (effectString == "Punkin") {
@@ -944,10 +1012,10 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
+    showleds();
   }
 
-    if (effectString == "Lovey Day") {                 //Valentine's Day colors (TWO COLOR SOLID)
+  if (effectString == "Lovey Day") {                 //Valentine's Day colors (TWO COLOR SOLID)
     idex++;
     if (idex >= NUM_LEDS) {
       idex = 0;
@@ -961,7 +1029,7 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();  
+    showleds();
   }
 
   if (effectString == "Holly Jolly") {
@@ -975,22 +1043,22 @@ void loop() {
       transitionTime = 30;
     }
     delayMultiplier = 1;
-    showleds();                  
+    showleds();
   }
 
-/////////////////End DrZzs effects/////////////
-///////////////////////////////////////////////
+  /////////////////End DrZzs effects/////////////
+  ///////////////////////////////////////////////
 
-////////Place your custom effects below////////////
-
-
+  ////////Place your custom effects below////////////
 
 
-/////////////end custom effects////////////////
 
-///////////////////////////////////////////////
-/////////fastLED & Bruh effects///////////////
-/////////////////////////////////////////////
+
+  /////////////end custom effects////////////////
+
+  ///////////////////////////////////////////////
+  /////////fastLED & Bruh effects///////////////
+  /////////////////////////////////////////////
 
   //EFFECT BPM
   if (effectString == "bpm") {
@@ -1079,7 +1147,7 @@ void loop() {
 
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
-    }    
+    }
     delayMultiplier = 1;
     showleds();
   }
@@ -1269,22 +1337,22 @@ void loop() {
 
   //EFFECT CHRISTMAS ALTERNATE
   if (effectString == "christmas alternate") {
-     for (int i = 0; i < NUM_LEDS; i++) {
-        if ((toggle + i) % 2 == 0) {
-          leds[i] = CRGB::Crimson;
-        }
-        else {
-          leds[i] = CRGB::DarkGreen;
-        }
+    for (int i = 0; i < NUM_LEDS; i++) {
+      if ((toggle + i) % 2 == 0) {
+        leds[i] = CRGB::Crimson;
       }
-      toggle=(toggle + 1) % 2;
-      if (transitionTime == 0 or transitionTime == NULL) {
+      else {
+        leds[i] = CRGB::DarkGreen;
+      }
+    }
+    toggle = (toggle + 1) % 2;
+    if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 130;
-      }
-      delayMultiplier = 30;
-      showleds();  
-      fadeall(); 
-      //delay(200);
+    }
+    delayMultiplier = 30;
+    showleds();
+    fadeall();
+    //delay(200);
   }
 
   //EFFECT RANDOM STARS
@@ -1299,103 +1367,103 @@ void loop() {
     delayMultiplier = 6;
     //delay(60);
     showleds();
-           
+
   }
 
-//EFFECT "Sine Hue"
+  //EFFECT "Sine Hue"
   if (effectString == "sine hue") {
-      static uint8_t hue_index = 0;
-      static uint8_t led_index = 0;
-      if (led_index >= NUM_LEDS) {  //Start off at 0 if the led_index was incremented past the segment size in some other effect
-        led_index = 0;
-      }
-      for (int i = 0; i < NUM_LEDS; i = i + 1)
-      {
-        leds[i] = CHSV(hue_index, 255, 255 - int(abs(sin(float(i + led_index) / NUM_LEDS * 2 * 3.14159) * 255)));
-      }
+    static uint8_t hue_index = 0;
+    static uint8_t led_index = 0;
+    if (led_index >= NUM_LEDS) {  //Start off at 0 if the led_index was incremented past the segment size in some other effect
+      led_index = 0;
+    }
+    for (int i = 0; i < NUM_LEDS; i = i + 1)
+    {
+      leds[i] = CHSV(hue_index, 255, 255 - int(abs(sin(float(i + led_index) / NUM_LEDS * 2 * 3.14159) * 255)));
+    }
 
-      led_index++,hue_index++;
+    led_index++, hue_index++;
 
-     if (hue_index >= 255) {
-        hue_index = 0;
-      }
-      delayMultiplier = 2;
-      showleds();        
+    if (hue_index >= 255) {
+      hue_index = 0;
+    }
+    delayMultiplier = 2;
+    showleds();
   }
 
 
-//EFFECT "Full Hue"
+  //EFFECT "Full Hue"
   if (effectString == "full hue") {
-      static uint8_t hue_index = 0;
-      fill_solid(leds, NUM_LEDS, CHSV(hue_index, 255, 255));
-      hue_index++;
+    static uint8_t hue_index = 0;
+    fill_solid(leds, NUM_LEDS, CHSV(hue_index, 255, 255));
+    hue_index++;
 
-     if (hue_index >= 255) {
-        hue_index = 0;
-      }
-      delayMultiplier = 2;
-      showleds();        
+    if (hue_index >= 255) {
+      hue_index = 0;
+    }
+    delayMultiplier = 2;
+    showleds();
   }
-  
 
-//EFFECT "Breathe"
+
+  //EFFECT "Breathe"
   if (effectString == "breathe") {
-      static bool toggle;
-      static uint8_t brightness_index = 0;
-      fill_solid(leds, NUM_LEDS,CHSV(thishue,255,brightness_index));
-      if (brightness_index >= 255) {
-        toggle=0;        
-      }
-      else if (brightness_index <= 0)
-      {
-        toggle=1;
-      }
+    static bool toggle;
+    static uint8_t brightness_index = 0;
+    fill_solid(leds, NUM_LEDS, CHSV(thishue, 255, brightness_index));
+    if (brightness_index >= 255) {
+      toggle = 0;
+    }
+    else if (brightness_index <= 0)
+    {
+      toggle = 1;
+    }
 
-      if (toggle)
-      {
-        brightness_index++;
-      }
-      else
-      {
-       brightness_index--;
-      }
-      
-      delayMultiplier = 2;
-      showleds();        
+    if (toggle)
+    {
+      brightness_index++;
+    }
+    else
+    {
+      brightness_index--;
+    }
+
+    delayMultiplier = 2;
+    showleds();
   }
 
 
-//EFFECT "Hue Breathe"
+  //EFFECT "Hue Breathe"
   if (effectString == "hue breathe") {
-      static uint8_t hue_index = 0;
-      static bool toggle = 1;
-      static uint8_t brightness_index = 0;
-      fill_solid(leds, NUM_LEDS, CHSV(hue_index, 255, brightness_index));
-      if (brightness_index >= 255) {
-        toggle=0;
-        hue_index=hue_index+10;
-      }
-      else if (brightness_index <= 0)
-      {
-        toggle=1;
-        hue_index=hue_index+10;
-      }
+    static uint8_t hue_index = 0;
+    static bool toggle = 1;
+    static uint8_t brightness_index = 0;
+    fill_solid(leds, NUM_LEDS, CHSV(hue_index, 255, brightness_index));
+    if (brightness_index >= 255) {
+      toggle = 0;
+      hue_index = hue_index + 10;
+    }
+    else if (brightness_index <= 0)
+    {
+      toggle = 1;
+      hue_index = hue_index + 10;
+    }
 
-      if (toggle)
-      {
-        brightness_index++;
-      }
-      else
-      {
-       brightness_index--;
-      }
-      
-      if (hue_index >= 255) {
-        hue_index = 0;
-      }
-      
-      delayMultiplier = 2;
-      showleds();        
+    if (toggle)
+    {
+      brightness_index++;
+    }
+    else
+    {
+      brightness_index--;
+    }
+
+    if (hue_index >= 255) {
+      hue_index = 0;
+    }
+
+    delayMultiplier = 2;
+    showleds();
   }
 
   EVERY_N_MILLISECONDS(10) {
@@ -1588,7 +1656,7 @@ int calculateVal(int step, int val, int i) {
   return val;
 }
 
-////////////////////////place setup__Palette and __Palettestriped custom functions here - for Candy Cane effects ///////////////// 
+////////////////////////place setup__Palette and __Palettestriped custom functions here - for Candy Cane effects /////////////////
 ///////You can use up to 4 colors and change the pattern of A's AB's B's and BA's as you like//////////////
 
 
@@ -1603,36 +1671,36 @@ void setupStripedPalette( CRGB A, CRGB AB, CRGB B, CRGB BA) {
 void setupHailPalette( CRGB A, CRGB AB, CRGB B, CRGB BA)
 {
   hailPalettestriped = CRGBPalette16(
-                            A, A, A, A, A, A, A, A, B, B, B, B, B, B, B, B
-                          );
+                         A, A, A, A, A, A, A, A, B, B, B, B, B, B, B, B
+                       );
 }
 
 void setupHJPalette( CRGB A, CRGB AB, CRGB B, CRGB BA)
 {
   HJPalettestriped = CRGBPalette16(
-                            A, A, A, A, A, A, A, A, B, B, B, B, B, B, B, B
-                          );
+                       A, A, A, A, A, A, A, A, B, B, B, B, B, B, B, B
+                     );
 }
 
 void setupIndPalette( CRGB A, CRGB AB, CRGB B, CRGB BA)
 {
   IndPalettestriped = CRGBPalette16(
-                            A, A, A, A, A, AB, AB, AB, AB, AB, B, B, B, B, B, B
-                          );
+                        A, A, A, A, A, AB, AB, AB, AB, AB, B, B, B, B, B, B
+                      );
 }
 
 void setupThxPalette( CRGB A, CRGB AB, CRGB B, CRGB BA)
 {
   ThxPalettestriped = CRGBPalette16(
-                            A, A, A, A, A, A, A, AB, AB, AB, B, B, B, B, B, B
-                          );
+                        A, A, A, A, A, A, A, AB, AB, AB, B, B, B, B, B, B
+                      );
 }
 
 void setupHalloweenPalette( CRGB A, CRGB AB, CRGB B, CRGB BA)
 {
   HalloweenPalettestriped = CRGBPalette16(
-                            A, A, A, A, A, A, A, A, B, B, B, B, B, B, B, B
-                          );
+                              A, A, A, A, A, A, A, A, B, B, B, B, B, B, B, B
+                            );
 }
 
 ////////////////////////////////////////////////////////
@@ -1718,58 +1786,58 @@ void showleds() {
   }
 }
 void temp2rgb(unsigned int kelvin) {
-    int tmp_internal = kelvin / 100.0;
-    
-    // red 
-    if (tmp_internal <= 66) {
-        red = 255;
+  int tmp_internal = kelvin / 100.0;
+
+  // red
+  if (tmp_internal <= 66) {
+    red = 255;
+  } else {
+    float tmp_red = 329.698727446 * pow(tmp_internal - 60, -0.1332047592);
+    if (tmp_red < 0) {
+      red = 0;
+    } else if (tmp_red > 255) {
+      red = 255;
     } else {
-        float tmp_red = 329.698727446 * pow(tmp_internal - 60, -0.1332047592);
-        if (tmp_red < 0) {
-            red = 0;
-        } else if (tmp_red > 255) {
-            red = 255;
-        } else {
-            red = tmp_red;
-        }
+      red = tmp_red;
     }
-    
-    // green
-    if (tmp_internal <=66){
-        float tmp_green = 99.4708025861 * log(tmp_internal) - 161.1195681661;
-        if (tmp_green < 0) {
-            green = 0;
-        } else if (tmp_green > 255) {
-            green = 255;
-        } else {
-            green = tmp_green;
-        }
+  }
+
+  // green
+  if (tmp_internal <= 66) {
+    float tmp_green = 99.4708025861 * log(tmp_internal) - 161.1195681661;
+    if (tmp_green < 0) {
+      green = 0;
+    } else if (tmp_green > 255) {
+      green = 255;
     } else {
-        float tmp_green = 288.1221695283 * pow(tmp_internal - 60, -0.0755148492);
-        if (tmp_green < 0) {
-            green = 0;
-        } else if (tmp_green > 255) {
-            green = 255;
-        } else {
-            green = tmp_green;
-        }
+      green = tmp_green;
     }
-    
-    // blue
-    if (tmp_internal >=66) {
-        blue = 255;
-    } else if (tmp_internal <= 19) {
-        blue = 0;
+  } else {
+    float tmp_green = 288.1221695283 * pow(tmp_internal - 60, -0.0755148492);
+    if (tmp_green < 0) {
+      green = 0;
+    } else if (tmp_green > 255) {
+      green = 255;
     } else {
-        float tmp_blue = 138.5177312231 * log(tmp_internal - 10) - 305.0447927307;
-        if (tmp_blue < 0) {
-            blue = 0;
-        } else if (tmp_blue > 255) {
-            blue = 255;
-        } else {
-            blue = tmp_blue;
-        }
+      green = tmp_green;
     }
+  }
+
+  // blue
+  if (tmp_internal >= 66) {
+    blue = 255;
+  } else if (tmp_internal <= 19) {
+    blue = 0;
+  } else {
+    float tmp_blue = 138.5177312231 * log(tmp_internal - 10) - 305.0447927307;
+    if (tmp_blue < 0) {
+      blue = 0;
+    } else if (tmp_blue > 255) {
+      blue = 255;
+    } else {
+      blue = tmp_blue;
+    }
+  }
 }
 
 /**************************** MUSIC VISUALIZER **************************************************/
@@ -1777,16 +1845,16 @@ void temp2rgb(unsigned int kelvin) {
 // Modified by Fma965
 
 CRGB Scroll(int pos) {
-  CRGB color (0,0,0);
-  if(pos < 85) {
+  CRGB color (0, 0, 0);
+  if (pos < 85) {
     color.g = 0;
     color.r = ((float)pos / 85.0f) * 255.0f;
     color.b = 255 - color.r;
-  } else if(pos < 170) {
+  } else if (pos < 170) {
     color.g = ((float)(pos - 85) / 85.0f) * 255.0f;
     color.r = 255 - color.g;
     color.b = 0;
-  } else if(pos < 256) {
+  } else if (pos < 256) {
     color.b = ((float)(pos - 170) / 85.0f) * 255.0f;
     color.g = 255 - color.b;
     color.r = 1;
@@ -1797,30 +1865,30 @@ CRGB Scroll(int pos) {
 void visualize_music(int LEDDirection)
 {
   //int audio_input = analogRead(audio) * MUSIC_SENSITIVITY;
-int audio_input = analogRead(audio) * map(transitionTime, 1, 150, 2, 7);
+  int audio_input = analogRead(audio) * map(transitionTime, 1, 150, 2, 7);
   if (audio_input > 0)
   {
-    if(LEDDirection == 1) {
-          pre_react = ((long)NUM_LEDS * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
-    } else if(LEDDirection == 2 || LEDDirection == 4) {
-          pre_react = ((long)NUM_LEDS/2 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
-    } else if(LEDDirection == 3) {
-          pre_react = ((long)NUM_LEDS/4 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
+    if (LEDDirection == 1) {
+      pre_react = ((long)NUM_LEDS * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
+    } else if (LEDDirection == 2 || LEDDirection == 4) {
+      pre_react = ((long)NUM_LEDS / 2 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
+    } else if (LEDDirection == 3) {
+      pre_react = ((long)NUM_LEDS / 4 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
     }
-    
+
     if (pre_react > react) // ONLY ADJUST LEVEL OF LED IF LEVEL HIGHER THAN CURRENT LEVEL
       react = pre_react;
   }
-  if(LEDDirection == 1) {
+  if (LEDDirection == 1) {
     RainbowL2R(); // Left to Right
-  } else if(LEDDirection == 2) {
+  } else if (LEDDirection == 2) {
     RainbowMiddleOut(); //Middle Out
-  } else if(LEDDirection == 3) {
+  } else if (LEDDirection == 3) {
     RainbowFma965(); //Custom setup for Fma965
-  } else if(LEDDirection == 4) {
+  } else if (LEDDirection == 4) {
     RainbowOutMiddle(); //Out to Middle
   }
-  
+
   k = k - wheel_speed; // SPEED OF COLOR WHEEL
   if (k < 0) // RESET COLOR WHEEL
     k = 255;
@@ -1841,67 +1909,282 @@ int audio_input = analogRead(audio) * map(transitionTime, 1, 150, 2, 7);
 }
 
 // https://github.com/NeverPlayLegit/Rainbow-Fader-FastLED/blob/master/rainbow.ino
-void RainbowL2R() 
+void RainbowL2R()
 {
-  for(int i = NUM_LEDS - 1; i >= 0; i--) {
+  for (int i = NUM_LEDS - 1; i >= 0; i--) {
     if (i < react)
       leds[i] = Scroll((i * 256 / 50 + k) % 256);
     else
-      leds[i] = CRGB(0, 0, 0);      
+      leds[i] = CRGB(0, 0, 0);
   }
-  FastLED.show(); 
+  FastLED.show();
 }
 
 void RainbowMiddleOut()
 {
-  for(int i = 0; i < NUM_LEDS/2; i++) {
+  for (int i = 0; i < NUM_LEDS / 2; i++) {
     if (i < react) {
-      leds[NUM_LEDS/2+i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
-      leds[NUM_LEDS/2-i-1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[NUM_LEDS / 2 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[NUM_LEDS / 2 - i - 1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
     }
     else {
-      leds[NUM_LEDS/2+i] = CRGB(0, 0, 0);
-      leds[NUM_LEDS/2-i-1] = CRGB(0, 0, 0);      
+      leds[NUM_LEDS / 2 + i] = CRGB(0, 0, 0);
+      leds[NUM_LEDS / 2 - i - 1] = CRGB(0, 0, 0);
     }
   }
-  FastLED.show(); 
+  FastLED.show();
 }
 
 void RainbowOutMiddle()
 {
-  for(int i = 0; i < NUM_LEDS/2+1; i++) {
+  for (int i = 0; i < NUM_LEDS / 2 + 1; i++) {
     if (i < react) {
-      leds[0+i] = Scroll((i * 256 / NUM_LEDS + k) % 256);       
-      leds[NUM_LEDS-i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[0 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[NUM_LEDS - i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
     } else {
-      leds[0+i] = CRGB(0, 0, 0);    
-      leds[NUM_LEDS-i] = CRGB(0, 0, 0);
-    } 
+      leds[0 + i] = CRGB(0, 0, 0);
+      leds[NUM_LEDS - i] = CRGB(0, 0, 0);
+    }
   }
-  FastLED.show(); 
+  FastLED.show();
 }
 
 void RainbowFma965()
 {
-   for(int i = 0; i < 21; i++) {
+  for (int i = 0; i < 21; i++) {
     if (i < react) {
-      leds[42-i-1] = Scroll((i * 256 / NUM_LEDS + k) % 256);       
-      leds[42+i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[42 - i - 1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[42 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
     } else {
-      leds[42-i-1] = CRGB(0, 0, 0);    
-      leds[42+i] = CRGB(0, 0, 0);
-    } 
+      leds[42 - i - 1] = CRGB(0, 0, 0);
+      leds[42 + i] = CRGB(0, 0, 0);
+    }
   }
-  for(int i = 0; i < 12; i++) {
+  for (int i = 0; i < 12; i++) {
     if (i < react) {
-      leds[10+i] = Scroll((i * 256 / NUM_LEDS + k) % 256); 
-      leds[10-i-1] = Scroll((i * 256 / NUM_LEDS + k) % 256); 
+      leds[10 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[10 - i - 1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
     } else {
-      leds[10+i] = CRGB(0, 0, 0);
-      leds[10-i-1] = CRGB(0, 0, 0);
-    } 
+      leds[10 + i] = CRGB(0, 0, 0);
+      leds[10 - i - 1] = CRGB(0, 0, 0);
+    }
   }
-  FastLED.show(); 
+  FastLED.show();
 }
 
 
+//WIFI configurator
+bool testWifi(void)
+{
+  int c = 0;
+  Serial.println("Waiting for Wifi to connect");
+  while ( c < 20 ) {
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      return true;
+    }
+    delay(500);
+    Serial.print("*");
+    c++;
+  }
+  Serial.println("");
+  Serial.println("Connect timed out, opening AP");
+  return false;
+}
+
+void launchWeb()
+{
+  Serial.println("");
+  if (WiFi.status() == WL_CONNECTED)
+    Serial.println("WiFi connected");
+  Serial.print("Local IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("SoftAP IP: ");
+  Serial.println(WiFi.softAPIP());
+  createWebServer();
+  // Start the server
+  server.begin();
+  Serial.println("Server started");
+}
+
+void setupAP(void)
+{
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+  int n = WiFi.scanNetworks();
+  Serial.println("scan done");
+  if (n == 0)
+    Serial.println("no networks found");
+  else
+  {
+    Serial.print(n);
+    Serial.println(" networks found");
+    for (int i = 0; i < n; ++i)
+    {
+      // Print SSID and RSSI for each network found
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.print(WiFi.SSID(i));
+      Serial.print(" (");
+      Serial.print(WiFi.RSSI(i));
+      Serial.print(")");
+      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+      delay(10);
+    }
+  }
+  Serial.println("");
+  st = "<ol>";
+  for (int i = 0; i < n; ++i)
+  {
+    // Print SSID and RSSI for each network found
+    st += "<li>";
+    st += WiFi.SSID(i);
+    st += " (";
+    st += WiFi.RSSI(i);
+
+    st += ")";
+    st += (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*";
+    st += "</li>";
+  }
+  st += "</ol>";
+  delay(100);
+  WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), "");
+  Serial.println("softap");
+
+  digitalWrite(LED_BUILTIN, LOW);
+  launchWeb();
+  Serial.println("over");
+}
+
+void createWebServer()
+{
+  {
+    server.on("/", []() {
+
+      IPAddress ip = WiFi.softAPIP();
+      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+      content = "<!DOCTYPE HTML>\r\n<html>Hello from ESP8266 at ";
+      content += ipStr;
+      content += "<form action=\"/scan\" method=\"POST\"><input type=\"submit\" value=\"scan\"></form>";
+      content += "<p>";
+      content += st;
+      content += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid' length=32><br><label>Wifi password: </label><input name='pass' length=64><br><label>Strip name: </label><input name='sensorname' length=32><br><label>OTA password: </label><input name='otapass' length=64><br><label>MQTT Server: </label><input name='mqttserver' length=32><br><label>MQTT user: </label><input name='mqttuser' length=32><br><label>MQTT password: </label><input name='mqttpass' length=64><input type='submit'></form>";
+      content += "</html>";
+      server.send(200, "text/html", content);
+    });
+    server.on("/scan", []() {
+      //setupAP();
+      IPAddress ip = WiFi.softAPIP();
+      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+
+      content = "<!DOCTYPE HTML>\r\n<html>go back";
+      server.send(200, "text/html", content);
+    });
+
+    server.on("/setting", []() {
+      String qsid = server.arg("ssid");
+      String qpass = server.arg("pass");
+      String sensorname = server.arg("sensorname");
+      String otapass = server.arg("otapass");
+      String mqttserver = server.arg("mqttserver");
+      String mqttuser = server.arg("mqttuser");
+      String mqttpass = server.arg("mqttpass");
+      if (qsid.length() > 0 && qpass.length() > 0 && sensorname.length() > 0 && otapass.length() > 0 && mqttserver.length() > 0 && mqttuser.length() > 0 && mqttpass.length() > 0) {
+        Serial.println("clearing eeprom");
+        for (int i = 0; i < sizeof(config); ++i) {
+          EEPROM.write(i, 0);
+        }
+        Serial.println(qsid);
+        Serial.println("");
+        Serial.println(qpass);
+        Serial.println("");
+        int q = 0;
+        Serial.println("writing eeprom ssid:");
+        for (int i = 0; i < qsid.length(); ++i)
+        {
+          EEPROM.write(q + i, qsid[i]);
+          Serial.print("Wrote: ");
+          Serial.println(qsid[i]);
+        }
+        q += sizeof(config.ssid);
+        Serial.println("writing eeprom pass:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, qpass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(qpass[i]);
+        }
+        q += sizeof(config.password);
+        Serial.println("writing eeprom sensorname:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, sensorname[i]);
+          Serial.print("Wrote: ");
+          Serial.println(sensorname[i]);
+        }
+        q += sizeof(config.name);
+        Serial.println("writing eeprom otapass:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, otapass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(otapass[i]);
+        }
+        q += sizeof(config.OTApassword);
+        Serial.println("writing eeprom mqttserver:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, mqttserver[i]);
+          Serial.print("Wrote: ");
+          Serial.println(mqttserver[i]);
+        }
+        q += sizeof(config.mqtt_server);
+        Serial.println("writing eeprom mqttuser:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, mqttuser[i]);
+          Serial.print("Wrote: ");
+          Serial.println(mqttuser[i]);
+        }
+        q += sizeof(config.mqtt_username);
+        Serial.println("writing eeprom mqttpass:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, mqttpass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(mqttpass[i]);
+        }
+        q += sizeof(config.mqtt_password);
+        Serial.println(q + 64);
+        noInterrupts();
+        EEPROM.commit();
+        interrupts();
+
+        content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
+        statusCode = 200;
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.send(statusCode, "application/json", content);
+        delay(1000); //Avoid reset before sending state
+        ESP.reset();
+      } else {
+        content = "{\"Error\":\"404 not found\"}";
+        statusCode = 404;
+        Serial.println("Sending 404");
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.send(statusCode, "application/json", content);
+      }
+
+    });
+  }
+}
+
+void reset_config() {
+  for (int i = 0; i < sizeof(config); ++i) {
+    EEPROM.write(i, 0);
+  }
+  noInterrupts();
+  EEPROM.commit();
+  interrupts();
+  ESP.reset();
+}
