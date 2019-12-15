@@ -7,15 +7,15 @@
   |______/  | _| `.__| \______/  |__|  |__|    /__/     \__\ \______/      |__|      \______/  |__|  |__| /__/     \__\  |__|     |__|  \______/  |__| \__|
 
   Thanks much to @corbanmailloux for providing a great framework for implementing flash/fade with HomeAssistant https://github.com/corbanmailloux/esp-mqtt-rgb-led
-  
-  To use this code you will need the following dependancies: 
-  
-  - Support for the ESP8266 boards. 
+
+  To use this code you will need the following dependancies:
+
+  - Support for the ESP8266 boards.
         - You can add it to the board manager by going to File -> Preference and pasting http://arduino.esp8266.com/stable/package_esp8266com_index.json into the Additional Board Managers URL field.
         - Next, download the ESP8266 dependancies by going to Tools -> Board -> Board Manager and searching for ESP8266 and installing it.
-  
+
   - You will also need to download the follow libraries by going to Sketch -> Include Libraries -> Manage Libraries
-      - FastLED 
+      - FastLED
       - PubSubClient
       - ArduinoJSON
 */
@@ -27,32 +27,35 @@
 #include "FastLED.h"
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266WebServer.h>
+#include <EEPROM.h>
 
-
+struct {
+  char ssid[32] = "";
+  char password[64] = "";
+  char name[32] = "";
+  char OTApassword[64] = "";
+  char mqtt_server[32] = "";
+  char mqtt_username[32] = "";
+  char mqtt_password[64] = "";
+} config;
 
 /************ WIFI and MQTT Information (CHANGE THESE FOR YOUR SETUP) ******************/
-const char* ssid = "YourSSID"; //type your WIFI information inside the quotes
-const char* password = "YourWIFIpassword";
-const char* mqtt_server = "your.MQTT.server.ip";
-const char* mqtt_username = "yourMQTTusername";
-const char* mqtt_password = "yourMQTTpassword";
 const int mqtt_port = 1883;
 //Visualizer
 #define BUFFER_LEN 2880
 unsigned int localPort = 7777;
 char packetBuffer[BUFFER_LEN];
 
+//Establishing Local server at port 80 whenever required
+ESP8266WebServer server(80);
+int statusCode;
+String st;
+String content;
 
 /**************************** FOR OTA **************************************************/
-#define SENSORNAME "stairs" //change this to whatever you want to call your device
-#define OTApassword "yourOTApassword" //the password you will need to enter to upload remotely via the ArduinoIDE
 int OTAport = 8266;
-
-
-
-/************* MQTT TOPICS (change these topics as you wish)  **************************/
-const char* light_state_topic = "bruh/stairs";
-const char* light_set_topic = "bruh/stairs/set";
 
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
@@ -187,18 +190,13 @@ WiFiUDP port;
 // Size: 48 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp ) {
-    0,   0, 12,  0,
-   40,   0, 55,  0,
-   66,   1,117,  2,
-   77,   1, 84,  1,
-   81,   0, 55,  0,
+  0,   0, 12,  0,
+  40,   0, 55,  0,
   119,   0, 12,  0,
   153,  42,  0,  0,
   181, 121,  0,  0,
-  204, 255, 12,  8,
-  224, 121,  0,  0,
-  244,  42,  0,  0,
-  255,  42,  0,  0};
+  255,  42,  0,  0
+};
 
 // Gradient palette "xmas_04_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/ma/xmas/tn/xmas_04.png.index.html
@@ -206,8 +204,9 @@ DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp ) {
 // Size: 8 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( xmas_04_gp ) {
-    0, 234,223,205,
-  255,  87,144,155};
+  0, 234, 223, 205,
+  255,  87, 144, 155
+};
 
 // Gradient palette "xmas_08_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/ma/xmas/tn/xmas_08.png.index.html
@@ -215,11 +214,13 @@ DEFINE_GRADIENT_PALETTE( xmas_04_gp ) {
 // Size: 8 bytes of program space.
 
 DEFINE_GRADIENT_PALETTE( xmas_08_gp ) {
-    0,   2,  6, 14,
-  255, 227,244,210};
+  0,   2,  6, 14,
+  255, 227, 244, 210
+};
 
 /********************************** START SETUP*****************************************/
 void setup() {
+  pinMode(0, INPUT_PULLUP);
   Serial.begin(115200);
   FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, NUM_LEDS);
 
@@ -227,7 +228,7 @@ void setup() {
   gPal = HeatColors_p; //for FIRE
 
   setup_wifi();
-  client.setServer(mqtt_server, mqtt_port);
+  client.setServer(config.mqtt_server, mqtt_port);
   client.setCallback(callback);
   //Visualizer
   port.begin(localPort);
@@ -235,10 +236,10 @@ void setup() {
   //OTA SETUP
   ArduinoOTA.setPort(OTAport);
   // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname(SENSORNAME);
+  ArduinoOTA.setHostname(config.name);
 
   // No authentication by default
-  ArduinoOTA.setPassword((const char *)OTApassword);
+  ArduinoOTA.setPassword(config.OTApassword);
 
   ArduinoOTA.onStart([]() {
     Serial.println("Starting");
@@ -265,30 +266,50 @@ void setup() {
 
 }
 
+//To include in all infinite loop that can lock the device
+void handle_input() {
+  int buttonState = digitalRead(0) ;
 
-
+  if (buttonState != HIGH)
+    reset_config();
+}
 
 /********************************** START SETUP WIFI*****************************************/
 void setup_wifi() {
-  wifi_set_phy_mode(PHY_MODE_11B);
   delay(10);
+  Serial.println("Disconnecting previously connected WiFi");
+  WiFi.disconnect();
+  EEPROM.begin(512); //Initialasing EEPROM
+  EEPROM.get(0, config);
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
-  
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  Serial.println(config.ssid);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(config.ssid, config.password);
+
+  if (testWifi())
+  {
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+    return;
+  }
+  else
+  {
+    Serial.println("Turning the HotSpot On");
+    launchWeb();
+    setupAP();// Setup HotSpot
   }
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(100);
+    server.handleClient();
+    handle_input();
+  }
 }
 
 /*
@@ -309,7 +330,7 @@ void setup_wifi() {
 
 
 /********************************** START CALLBACK*****************************************/
-void callback(char* topic, byte* payload, unsigned int length) {
+void callback(char* topic, byte * payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -425,14 +446,14 @@ bool processJson(char* message) {
       green = root["color"]["g"];
       blue = root["color"]["b"];
     }
-    
+
     if (root.containsKey("color_temp")) {
       //temp comes in as mireds, need to convert to kelvin then to RGB
       int color_temp = root["color_temp"];
       unsigned int kelvin  = 1000000 / color_temp;
-      
+
       temp2rgb(kelvin);
-      
+
     }
 
     if (root.containsKey("brightness")) {
@@ -475,8 +496,9 @@ void sendState() {
 
   char buffer[measureJson(root) + 1];
   serializeJson(root, buffer, measureJson(root) + 1);
-
-  client.publish(light_state_topic, buffer, true);
+  char* endpoint    = new char[sizeof("domustech/") + strlen(config.name)];
+  sprintf(endpoint, "domustech/%s", config.name);
+  client.publish(endpoint, buffer, true);
 }
 
 
@@ -485,11 +507,14 @@ void sendState() {
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
+    handle_input();
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect(SENSORNAME, mqtt_username, mqtt_password)) {
+    if (client.connect(config.name, config.mqtt_username, config.mqtt_password)) {
       Serial.println("connected");
-      client.subscribe(light_set_topic);
+      char* endpoint    = new char[sizeof("domustech/") + strlen(config.name) + strlen("/set")];
+      sprintf(endpoint, "domustech/%s/set", config.name);
+      client.subscribe(endpoint);
       setColor(0, 0, 0);
       sendState();
     } else {
@@ -527,20 +552,21 @@ void setColor(int inR, int inG, int inB) {
 
 /********************************** START MAIN LOOP*****************************************/
 void loop() {
-      // Read data over socket
-      int packetSize = port.parsePacket();
-      // If packets have been received, interpret the command
-      if (packetSize) {
-          int len = port.read(packetBuffer, BUFFER_LEN);
-          for(int i = 0; i < len; i+=5) {
-              packetBuffer[len] = 0;
-              int N = ((packetBuffer[i] << 8)+packetBuffer[i+1]);
-              leds[N] = CRGB((uint8_t)packetBuffer[i+2], (uint8_t)packetBuffer[i+3], (uint8_t)packetBuffer[i+4]);
-          } 
-          FastLED.show();
-      }else{
-        effects();
-      }
+  handle_input();
+  // Read data over socket
+  int packetSize = port.parsePacket();
+  // If packets have been received, interpret the command
+  if (packetSize) {
+    int len = port.read(packetBuffer, BUFFER_LEN);
+    for (int i = 0; i < len; i += 5) {
+      packetBuffer[len] = 0;
+      int N = ((packetBuffer[i] << 8) + packetBuffer[i + 1]);
+      leds[N] = CRGB((uint8_t)packetBuffer[i + 2], (uint8_t)packetBuffer[i + 3], (uint8_t)packetBuffer[i + 4]);
+    }
+    FastLED.show();
+  } else {
+    effects();
+  }
 }
 void effects() {
   if (!client.connected()) {
@@ -871,7 +897,7 @@ void effects() {
     }
 
     //GRADIENTS
-    if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+    if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED
       static uint8_t startIndex = 0;
       startIndex = startIndex + floor(transitionTime / 10);
       CRGBPalette16 palette = bhw2_xmas_gp;
@@ -880,9 +906,9 @@ void effects() {
         transitionTime = 30;
       }
       delayMultiplier = 1;
-      showleds();  
+      showleds();
     }
-    if (effectString == "Christmas cold") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+    if (effectString == "Christmas cold") {                                  // colored stripes pulsing in Shades of GREEN and RED
       static uint8_t startIndex = 0;
       startIndex = startIndex + floor(transitionTime / 10);
       CRGBPalette16 palette = xmas_04_gp;
@@ -891,9 +917,9 @@ void effects() {
         transitionTime = 30;
       }
       delayMultiplier = 1;
-      showleds();  
+      showleds();
     }
-    if (effectString == "Christmas cold2") {                                  // colored stripes pulsing in Shades of GREEN and RED 
+    if (effectString == "Christmas cold2") {                                  // colored stripes pulsing in Shades of GREEN and RED
       static uint8_t startIndex = 0;
       startIndex = startIndex + floor(transitionTime / 10);
       CRGBPalette16 palette = xmas_08_gp;
@@ -902,7 +928,7 @@ void effects() {
         transitionTime = 30;
       }
       delayMultiplier = 1;
-      showleds();  
+      showleds();
     }
   }
 
@@ -1147,56 +1173,266 @@ void showleds() {
   }
 }
 void temp2rgb(unsigned int kelvin) {
-    int tmp_internal = kelvin / 100.0;
-    
-    // red 
-    if (tmp_internal <= 66) {
-        red = 255;
+  int tmp_internal = kelvin / 100.0;
+
+  // red
+  if (tmp_internal <= 66) {
+    red = 255;
+  } else {
+    float tmp_red = 329.698727446 * pow(tmp_internal - 60, -0.1332047592);
+    if (tmp_red < 0) {
+      red = 0;
+    } else if (tmp_red > 255) {
+      red = 255;
     } else {
-        float tmp_red = 329.698727446 * pow(tmp_internal - 60, -0.1332047592);
-        if (tmp_red < 0) {
-            red = 0;
-        } else if (tmp_red > 255) {
-            red = 255;
-        } else {
-            red = tmp_red;
-        }
+      red = tmp_red;
     }
-    
-    // green
-    if (tmp_internal <=66){
-        float tmp_green = 99.4708025861 * log(tmp_internal) - 161.1195681661;
-        if (tmp_green < 0) {
-            green = 0;
-        } else if (tmp_green > 255) {
-            green = 255;
-        } else {
-            green = tmp_green;
-        }
+  }
+
+  // green
+  if (tmp_internal <= 66) {
+    float tmp_green = 99.4708025861 * log(tmp_internal) - 161.1195681661;
+    if (tmp_green < 0) {
+      green = 0;
+    } else if (tmp_green > 255) {
+      green = 255;
     } else {
-        float tmp_green = 288.1221695283 * pow(tmp_internal - 60, -0.0755148492);
-        if (tmp_green < 0) {
-            green = 0;
-        } else if (tmp_green > 255) {
-            green = 255;
-        } else {
-            green = tmp_green;
-        }
+      green = tmp_green;
     }
-    
-    // blue
-    if (tmp_internal >=66) {
-        blue = 255;
-    } else if (tmp_internal <= 19) {
-        blue = 0;
+  } else {
+    float tmp_green = 288.1221695283 * pow(tmp_internal - 60, -0.0755148492);
+    if (tmp_green < 0) {
+      green = 0;
+    } else if (tmp_green > 255) {
+      green = 255;
     } else {
-        float tmp_blue = 138.5177312231 * log(tmp_internal - 10) - 305.0447927307;
-        if (tmp_blue < 0) {
-            blue = 0;
-        } else if (tmp_blue > 255) {
-            blue = 255;
-        } else {
-            blue = tmp_blue;
-        }
+      green = tmp_green;
     }
+  }
+
+  // blue
+  if (tmp_internal >= 66) {
+    blue = 255;
+  } else if (tmp_internal <= 19) {
+    blue = 0;
+  } else {
+    float tmp_blue = 138.5177312231 * log(tmp_internal - 10) - 305.0447927307;
+    if (tmp_blue < 0) {
+      blue = 0;
+    } else if (tmp_blue > 255) {
+      blue = 255;
+    } else {
+      blue = tmp_blue;
+    }
+  }
+}
+
+
+//WIFI configurator
+bool testWifi(void)
+{
+  int c = 0;
+  Serial.println("Waiting for Wifi to connect");
+  while ( c < 20 ) {
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      return true;
+    }
+    delay(500);
+    Serial.print("*");
+    c++;
+  }
+  Serial.println("");
+  Serial.println("Connect timed out, opening AP");
+  return false;
+}
+
+void launchWeb()
+{
+  Serial.println("");
+  if (WiFi.status() == WL_CONNECTED)
+    Serial.println("WiFi connected");
+  Serial.print("Local IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("SoftAP IP: ");
+  Serial.println(WiFi.softAPIP());
+  createWebServer();
+  // Start the server
+  server.begin();
+  Serial.println("Server started");
+}
+
+void setupAP(void)
+{
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+  int n = WiFi.scanNetworks();
+  Serial.println("scan done");
+  if (n == 0)
+    Serial.println("no networks found");
+  else
+  {
+    Serial.print(n);
+    Serial.println(" networks found");
+    for (int i = 0; i < n; ++i)
+    {
+      // Print SSID and RSSI for each network found
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.print(WiFi.SSID(i));
+      Serial.print(" (");
+      Serial.print(WiFi.RSSI(i));
+      Serial.print(")");
+      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+      delay(10);
+    }
+  }
+  Serial.println("");
+  st = "<ol>";
+  for (int i = 0; i < n; ++i)
+  {
+    // Print SSID and RSSI for each network found
+    st += "<li>";
+    st += WiFi.SSID(i);
+    st += " (";
+    st += WiFi.RSSI(i);
+
+    st += ")";
+    st += (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*";
+    st += "</li>";
+  }
+  st += "</ol>";
+  delay(100);
+  WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), "");
+  Serial.println("softap");
+
+  digitalWrite(LED_BUILTIN, HIGH);
+  launchWeb();
+  Serial.println("over");
+}
+
+void createWebServer()
+{
+  {
+    server.on("/", []() {
+
+      IPAddress ip = WiFi.softAPIP();
+      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+      content = "<!DOCTYPE HTML>\r\n<html>Hello from ESP8266 at ";
+      content += ipStr;
+      content += "<form action=\"/scan\" method=\"POST\"><input type=\"submit\" value=\"scan\"></form>";
+      content += "<p>";
+      content += st;
+      content += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid' length=32><br><label>Wifi password: </label><input name='pass' length=64><br><label>Strip name: </label><input name='sensorname' length=32><br><label>OTA password: </label><input name='otapass' length=64><br><label>MQTT Server: </label><input name='mqttserver' length=32><br><label>MQTT user: </label><input name='mqttuser' length=32><br><label>MQTT password: </label><input name='mqttpass' length=64><input type='submit'></form>";
+      content += "</html>";
+      server.send(200, "text/html", content);
+    });
+    server.on("/scan", []() {
+      //setupAP();
+      IPAddress ip = WiFi.softAPIP();
+      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+
+      content = "<!DOCTYPE HTML>\r\n<html>go back";
+      server.send(200, "text/html", content);
+    });
+
+    server.on("/setting", []() {
+      String qsid = server.arg("ssid");
+      String qpass = server.arg("pass");
+      String sensorname = server.arg("sensorname");
+      String otapass = server.arg("otapass");
+      String mqttserver = server.arg("mqttserver");
+      String mqttuser = server.arg("mqttuser");
+      String mqttpass = server.arg("mqttpass");
+      if (qsid.length() > 0 && qpass.length() > 0 && sensorname.length() > 0 && otapass.length() > 0 && mqttserver.length() > 0 && mqttuser.length() > 0 && mqttpass.length() > 0) {
+        Serial.println("clearing eeprom");
+        for (int i = 0; i < sizeof(config); ++i) {
+          EEPROM.write(i, 0);
+        }
+        Serial.println(qsid);
+        Serial.println("");
+        Serial.println(qpass);
+        Serial.println("");
+        int q = 0;
+        Serial.println("writing eeprom ssid:");
+        for (int i = 0; i < qsid.length(); ++i)
+        {
+          EEPROM.write(q + i, qsid[i]);
+          Serial.print("Wrote: ");
+          Serial.println(qsid[i]);
+        }
+        q += sizeof(config.ssid);
+        Serial.println("writing eeprom pass:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, qpass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(qpass[i]);
+        }
+        q += sizeof(config.password);
+        Serial.println("writing eeprom sensorname:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, sensorname[i]);
+          Serial.print("Wrote: ");
+          Serial.println(sensorname[i]);
+        }
+        q += sizeof(config.name);
+        Serial.println("writing eeprom otapass:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, otapass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(otapass[i]);
+        }
+        q += sizeof(config.OTApassword);
+        Serial.println("writing eeprom mqttserver:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, mqttserver[i]);
+          Serial.print("Wrote: ");
+          Serial.println(mqttserver[i]);
+        }
+        q += sizeof(config.mqtt_server);
+        Serial.println("writing eeprom mqttuser:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, mqttuser[i]);
+          Serial.print("Wrote: ");
+          Serial.println(mqttuser[i]);
+        }
+        q += sizeof(config.mqtt_username);
+        Serial.println("writing eeprom mqttpass:");
+        for (int i = 0; i < qpass.length(); ++i)
+        {
+          EEPROM.write(q + i, mqttpass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(mqttpass[i]);
+        }
+        q += sizeof(config.mqtt_password);
+        Serial.println(q + 64);
+        EEPROM.commit();
+
+        content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
+        statusCode = 200;
+        ESP.reset();
+      } else {
+        content = "{\"Error\":\"404 not found\"}";
+        statusCode = 404;
+        Serial.println("Sending 404");
+      }
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.send(statusCode, "application/json", content);
+
+    });
+  }
+}
+
+void reset_config() {
+  for (int i = 0; i < sizeof(config); ++i) {
+    EEPROM.write(i, 0);
+  }
+  EEPROM.commit();
+  ESP.reset();
 }
