@@ -9,10 +9,14 @@ light:
   - platform: mqtt
     schema: json
     name: "Stairs Strip"
-    state_topic: "bruh/stairs"
-    command_topic: "bruh/stairs/set"
+    state_topic: "domustech/stairs"
+    command_topic: "domustech/stairs/set"
     effect: true
     effect_list:
+      - solid    
+      - Music - L2R
+      - Music - Middle
+      - Music - Fma965
       - bpm
       - candy cane  
       - confetti  
@@ -27,10 +31,29 @@ light:
       - police one  
       - rainbow  
       - rainbow with glitter  
-      - ripple  
-      - sinelon  
-      - solid  
-      - twinkle  
+      - ripple      
+      - twinkle
+      - sinelon
+      - sine hue
+      - full hue
+      - breathe
+      - hue breathe
+      - Christmas
+      - christmas alternate
+      - random stars
+      - St Patty
+      - Valentine
+      - Turkey Day
+      - Thanksgiving
+      - USA
+      - Independence
+      - Halloween
+      - Go Lions
+      - Hail
+      - Touchdown
+      - Punkin
+      - Lovey Day
+      - Holly Jolly 
     brightness: true
     rgb: true
     optimistic: false
