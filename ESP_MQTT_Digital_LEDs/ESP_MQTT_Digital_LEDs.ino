@@ -182,6 +182,7 @@ PubSubClient client(espClient);
 struct CRGB leds[NUM_LEDS];
 WiFiUDP port;
 
+int LED_state = HIGH;
 /********************************** GRADIENTS*****************************************/
 
 // Gradient palette "bhw2_xmas_gp", originally from
@@ -221,6 +222,8 @@ DEFINE_GRADIENT_PALETTE( xmas_08_gp ) {
 /********************************** START SETUP*****************************************/
 void setup() {
   pinMode(0, INPUT_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
   Serial.begin(115200);
   FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, NUM_LEDS);
 
@@ -263,6 +266,7 @@ void setup() {
   Serial.println("Ready");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+  digitalWrite(LED_BUILTIN, LOW);
 
 }
 
@@ -274,12 +278,16 @@ void handle_input() {
     reset_config();
 }
 
+void led_flash() {
+  LED_state = !LED_state;
+  digitalWrite(LED_BUILTIN, LED_state);
+}
 /********************************** START SETUP WIFI*****************************************/
 void setup_wifi() {
   delay(10);
   Serial.println("Disconnecting previously connected WiFi");
   WiFi.disconnect();
-  EEPROM.begin(512); //Initialasing EEPROM
+  EEPROM.begin(sizeof (config)); //Initialasing EEPROM
   EEPROM.get(0, config);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -309,6 +317,7 @@ void setup_wifi() {
     delay(100);
     server.handleClient();
     handle_input();
+    led_flash();
   }
 }
 
@@ -508,6 +517,7 @@ void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
     handle_input();
+    led_flash();
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
     if (client.connect(config.name, config.mqtt_username, config.mqtt_password)) {
@@ -525,6 +535,7 @@ void reconnect() {
       delay(5000);
     }
   }
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 
@@ -553,6 +564,7 @@ void setColor(int inR, int inG, int inB) {
 /********************************** START MAIN LOOP*****************************************/
 void loop() {
   handle_input();
+  digitalWrite(LED_BUILTIN, HIGH); //Tempory there because the LED stay on even when setup is end
   // Read data over socket
   int packetSize = port.parsePacket();
   // If packets have been received, interpret the command
@@ -1307,7 +1319,7 @@ void setupAP(void)
   WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), "");
   Serial.println("softap");
 
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(LED_BUILTIN, LOW);
   launchWeb();
   Serial.println("over");
 }
@@ -1412,18 +1424,23 @@ void createWebServer()
         }
         q += sizeof(config.mqtt_password);
         Serial.println(q + 64);
+        noInterrupts();
         EEPROM.commit();
+        interrupts();
 
         content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
         statusCode = 200;
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.send(statusCode, "application/json", content);
+        delay(1000); //Avoid reset before sending state
         ESP.reset();
       } else {
         content = "{\"Error\":\"404 not found\"}";
         statusCode = 404;
         Serial.println("Sending 404");
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.send(statusCode, "application/json", content);
       }
-      server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.send(statusCode, "application/json", content);
 
     });
   }
@@ -1433,6 +1450,8 @@ void reset_config() {
   for (int i = 0; i < sizeof(config); ++i) {
     EEPROM.write(i, 0);
   }
+  noInterrupts();
   EEPROM.commit();
+  interrupts();
   ESP.reset();
 }
