@@ -6,14 +6,11 @@ mqtt:
   password: YOURPASSWORD
 
 light:
-    - platform: mqtt
+  - platform: mqtt
     schema: json
-    name: "RGB Light Strip 1"
-    state_topic: "home/RGBStrip1"
-    command_topic: "home/RGBStrip1/set"
-    rgb: true
-    availability_topic: "home/RGBStrip1/LWT"
-    white_value: true
+    name: "Stairs Strip"
+    state_topic: "domustech/stairs"
+    command_topic: "domustech/stairs/set"
     effect: true
     effect_list:
       - solid    
@@ -56,7 +53,28 @@ light:
       - Touchdown
       - Punkin
       - Lovey Day
-      - Holly Jolly      
+      - Holly Jolly 
     brightness: true
+    rgb: true
     optimistic: false
     qos: 0
+
+input_number:
+  stairs_animation_speed:
+    name: Stairs Animation Speed
+    initial: 150
+    min: 1
+    max: 150
+    step: 10
+automation: 
+  - alias: "Stairs Animation Speed"
+    initial_state: True
+    hide_entity: False
+    trigger:
+      - platform: state
+        entity_id: input_number.stairs_animation_speed
+    action:
+      - service: mqtt.publish
+        data_template:
+          topic: "bruh/stairs/set"
+          payload: '{"transition":{{ trigger.to_state.state | int }}}'
