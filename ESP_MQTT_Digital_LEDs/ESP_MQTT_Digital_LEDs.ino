@@ -171,6 +171,14 @@ DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp ) {
   255,  42,  0,  0
 };
 
+DEFINE_GRADIENT_PALETTE( bhw2_xmas_gp_b ) {
+  0,   0, 12,  0,
+  40,   0, 55,  0,
+  119,   0, 12,  0,
+  153,  42,  0,  0,
+  181, 121,  0,  0,
+  255,  42,  0,  0
+};
 // Gradient palette "bhw2_xc_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/bhw/bhw2/tn/bhw2_xc.png.index.html
 // converted for FastLED with gammas (2.6, 2.2, 2.5)
@@ -831,13 +839,25 @@ void effects() {
   //////DrZzs custom effects//////////////
   ///////////////////////////////////////
 
-  if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED
+  if (effectString == "Christmas bounce") {                                  // colored stripes pulsing in Shades of GREEN and RED
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_xmas_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
     for ( int i = 0; i < NUM_LEDS; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
+    if (transitionTime == 0 or transitionTime == NULL) {
+      transitionTime = 30;
+    }
+    delayMultiplier = 1;
+    showleds();
+  }
+
+  if (effectString == "Christmas") {                                  // colored stripes pulsing in Shades of GREEN and RED
+    static uint8_t startIndex = 0;
+    startIndex = startIndex + floor(transitionTime / 10);
+    CRGBPalette16 palette = bhw2_xmas_gp_b;
+    fill_palette( leds, NUM_LEDS, startIndex, 3, palette, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
