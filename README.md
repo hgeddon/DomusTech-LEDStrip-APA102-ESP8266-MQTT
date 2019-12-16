@@ -1,4 +1,5 @@
-![](https://github.com/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs/workflows/Github%20Arduino%20Library%20CI/badge.svg)
+[![Build Status](https://travis-ci.org/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs.svg?branch=master)](https://travis-ci.org/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs)
+[![Build Status](https://github.com/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs/workflows/Github%20Arduino%20Library%20CI/badge.svg)](https://github.com/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs/actions)
 # ESP MQTT JSON Digital LEDs
 NOTE To be able to build it you need this version of FastLED [BenoitAnastay/FastLED](https://github.com/BenoitAnastay/FastLED) until the main repository add the SPI support for ESP8266
 
