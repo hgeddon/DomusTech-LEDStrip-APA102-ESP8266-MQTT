@@ -150,11 +150,10 @@ if [ $? -ne 0 ]; then echo -e """$RED""\xe2\x9c\x96"; else echo -e """$GREEN""\x
 DEPENDENCY_OUTPUT=$(arduino --install-library ArduinoJson > /dev/null 2>&1)
 if [ $? -ne 0 ]; then echo -e """$RED""\xe2\x9c\x96"; else echo -e """$GREEN""\xe2\x9c\x93"; fi
 
-DEPENDENCY_OUTPUT=$(arduino --install-library FastLED > /dev/null 2>&1)
-if [ $? -ne 0 ]; then echo -e """$RED""\xe2\x9c\x96"; else echo -e """$GREEN""\xe2\x9c\x93"; fi
-
 DEPENDENCY_OUTPUT=$(arduino --install-library PubSubClient > /dev/null 2>&1)
 if [ $? -ne 0 ]; then echo -e """$RED""\xe2\x9c\x96"; else echo -e """$GREEN""\xe2\x9c\x93"; fi
+
+git clone https://github.com/BenoitAnastay/FastLED.git ~/Arduino/libraries/FastLED
 
 # set the maximal compiler warning level
 echo -n "SET BUILD PREFERENCES: "
