@@ -1,3 +1,4 @@
+![](https://github.com/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs/workflows/Github%20Arduino%20Library%20CI/badge.svg)
 # ESP MQTT JSON Digital LEDs
 
 This project shows a super easy way to get started using Digital LED strips with [Home Assistant](https://home-assistant.io/), a sick, open-source Home Automation platform that can do just about anything. 
