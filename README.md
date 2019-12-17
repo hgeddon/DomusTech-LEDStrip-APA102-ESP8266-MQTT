@@ -69,7 +69,7 @@ This code also supports remote uploading to the ESP8266 using Arduino's OTA libr
 #### Home Assistant Configuration
 Copy past the [`Home Assistant/config/packages`](https://github.com/BenoitAnastay/DomusTech-LEDStrip-APA102-ESP8266-MQTT/tree/master/Home%20Assistant/config/packages) directory into Home Assistant `config` directory
 
-Now edit your `Home Assistant/config/packages/rgb_strip.yaml` file, replace stairs by anything you want
+Now edit your `config/packages/rgb_strip.yaml` file, replace stairs by anything you want
 
 And add this to you HA `configuration.yaml` (Making HA reading `packages` dircetory)
 ```
