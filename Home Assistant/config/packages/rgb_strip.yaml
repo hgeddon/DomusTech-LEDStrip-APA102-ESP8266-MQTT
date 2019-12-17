@@ -39,6 +39,7 @@ light:
       - breathe
       - hue breathe
       - Christmas
+      - Christmas bounce
       - christmas alternate
       - random stars
       - St Patty
@@ -53,7 +54,8 @@ light:
       - Touchdown
       - Punkin
       - Lovey Day
-      - Holly Jolly 
+      - Holly Jolly
+      - Visualizer
     brightness: true
     rgb: true
     optimistic: false
