@@ -76,6 +76,37 @@ And add this to you HA `configuration.yaml` (Making HA reading `packages` dircet
 homeassistant:
     packages: !include_dir_named packages
 ```
+#### Basic Automation with Sensor
+When using `light.turn_on` the strip turn on with the last runned effect
+
+A basic automation with a sensor
+```
+automation: 
+  - alias: Turn on strip
+    trigger:
+      platform: state
+      entity_id: binary_sensor.stairs_sensor
+      to: 'on'
+    condition:
+      - condition: state
+        entity_id: light.strip_escalier
+        state: 'off'
+    action:
+      - service: light.turn_on
+        entity_id: light.strip_escalier
+      - service: automation.turn_on
+        entity_id: automation.turn_off_strip
+  - alias: Turn off strip
+    trigger:
+      platform: state
+      entity_id: light.strip_escalier
+      to: 'off'
+    action:
+      - service: light.turn_off
+        entity_id: light.strip_escalier
+      - service: automation.turn_off
+        entity_id: automation.turn_off_strip
+```
 
 #### Python UDP Visualizer
 First thing first, don't forget to modify the `python-visualizer/config.py` file acordingly to your configuration
