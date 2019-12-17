@@ -174,7 +174,7 @@ export PASS_COUNT=0
 export SKIP_COUNT=0
 export FAIL_COUNT=0
 export PDE_COUNT=0
-
+else
 # build all of the examples for the passed platform
 function build_platform()
 {
