@@ -31,6 +31,15 @@ FastLED SPI for ESP8266  : [Benoit Anastay](https://github.com/BenoitAnastay)
 FastLED Animation Library : [FastLED](https://github.com/FastLED)
 
 Webserver for wifi setup : [Christopher Strider Cook](https://github.com/chriscook8)
+
+Arduino Client for MQTT  : [Nick O'Leary](https://github.com/knolleary)
+
+Arduino JSON library     : [Benoît Blanchon](https://github.com/bblanchon)
+
+Arduino SDK              : [Arduino](https://github.com/arduino)
+
+ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
+
 #### Supported Features Include
 - RGB Color Selection
 - Brightness 
