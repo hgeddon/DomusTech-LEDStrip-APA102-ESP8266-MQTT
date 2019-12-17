@@ -1,25 +1,24 @@
 # Audio Reactive LED Strip
 Real-time LED strip music visualization using Python and the ESP8266 or Raspberry Pi.
 
-![block diagram](images/block-diagram.png)
+![block diagram](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/block-diagram.png)
 
-![overview](images/description-cropped.gif)
+![overview](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/description-cropped.gif)
 
 # Demo (click gif for video)
 
-[![visualizer demo](images/scroll-effect-demo.gif)](https://www.youtube.com/watch?v=HNtM7jH5GXgD)
+[![visualizer demo](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/scroll-effect-demo.gif)](https://www.youtube.com/watch?v=HNtM7jH5GXgD)
 
 # Overview
 The repository includes everything needed to build an LED strip music visualizer (excluding hardware):
 
 - Python visualization code, which includes code for:
-  - Recording audio with a microphone ([microphone.py](python/microphone.py))
-  - Digital signal processing ([dsp.py](python/dsp.py))
-  - Constructing 1D visualizations ([visualization.py](python/visualization.py))
-  - Sending pixel information to the ESP8266 over WiFi ([led.py](python/led.py))
-  - Configuration and settings ([config.py](python/config.py))
-- Arduino firmware for the ESP8266 ([ws2812_controller_esp8266.ino](arduino/ws2812_controller_esp8266/ws2812_controller_esp8266.ino))
-
+  - Recording audio with a microphone ([microphone.py](python-visualizer/microphone.py))
+  - Digital signal processing ([dsp.py](python-visualizer/dsp.py))
+  - Constructing 1D visualizations ([visualization.py](python-visualizer/visualization.py))
+  - Sending pixel information to the ESP8266 over WiFi ([led.py](python-visualizer/led.py))
+  - Configuration and settings ([config.py](python-visualizer/config.py))
+  - Arduino firmware for the ESP8266 (ESP_MQTT_Digital_LEDs.ino)
 # What do I need to make one?
 ## Computer + ESP8266
 To build a visualizer using a computer and ESP8266, you will need:
@@ -92,8 +91,8 @@ The RX1 pin on the ESP8266 module should be connected to the data input pin of t
 
 For the NodeMCU v3 and Adafruit Feather HUZZAH, the location of the RX1 pin is shown in the images below. Many other modules also expose the RX1 pin.
 
-![nodemcu-pinout](images/NodeMCUv3-small.png)
-![feather-huzzah-pinout](images/FeatherHuzzah-small.png)
+![nodemcu-pinout](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/NodeMCUv3-small.png)
+![feather-huzzah-pinout](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/FeatherHuzzah-small.png)
 
 ### Raspberry Pi
 Since the Raspberry Pi is a 3.3V device, the best practice is to use a logic level converter to shift the 3.3V logic to 5V logic (WS2812 LEDs use 5V logic). There is a good overview on the [best practices here](https://learn.adafruit.com/adafruit-neopixel-uberguide/best-practices).
@@ -113,20 +112,14 @@ The connections are:
 2. [Install Arduino IDE and ESP8266 addon](https://learn.sparkfun.com/tutorials/esp8266-thing-hookup-guide/installing-the-esp8266-arduino-addon)
 3. Download and extract all of the files in this repository onto your computer
 4. Connect the RX1 pin of your ESP8266 module to the data input pin of the ws2812b LED strip. Ensure that your LED strip is properly connected to a 5V power supply and that the ESP8266 and LED strip share a common electrical ground connection.
-5. In [ws2812_controller.ino](arduino/ws2812_controller/ws2812_controller.ino):
-  - Set `const char* ssid` to your router's SSID
-  - Set `const char* password` to your router's password
-  - Set `IPAddress gateway` to match your router's gateway
-  - Set `IPAddress ip` to the IP address that you would like your ESP8266 to use (your choice)
-  - Set `#define NUM_LEDS` to the number of LEDs in your LED strip
-6. Upload the [ws2812_controller.ino](arduino/ws2812_controller/ws2812_controller.ino) firmware to the ESP8266. Ensure that you have selected the correct ESP8266 board from the boards menu. In the dropdown menu, set `CPU Frequency` to 160 MHz for optimal performance.
-7. In [config.py](python/config.py):
-  - Set `N_PIXELS` to the number of LEDs in your LED strip (must match `NUM_LEDS` in [ws2812_controller.ino](arduino/ws2812_controller/ws2812_controller.ino))
-  - Set `UDP_IP` to the IP address of your ESP8266 (must match `ip` in [ws2812_controller.ino](arduino/ws2812_controller/ws2812_controller.ino))
+5. Upload the [ESP_MQTT_Digital_LEDs.ino](ESP_MQTT_Digital_LEDs/ESP_MQTT_Digital_LEDs.ino) firmware to the ESP8266. Ensure that you have selected the correct ESP8266 board from the boards menu. In the dropdown menu, set `CPU Frequency` to 160 MHz for optimal performance.
+6. In [config.py](python-visualizer/config.py):
+  - Set `N_PIXELS` to the number of LEDs in your LED strip (must match `NUM_LEDS` in [ESP_MQTT_Digital_LEDs.ino](ESP_MQTT_Digital_LEDs/ESP_MQTT_Digital_LEDs.ino))
+  - Set `UDP_IP` to the IP address of your ESP8266 
   - If needed, set `MIC_RATE` to your microphone sampling rate in Hz. Most of the time you will not need to change this.
 
 # Installation for Raspberry Pi
-If you encounter any problems running the visualization on a Raspberry Pi, please [open a new issue](https://github.com/scottlawsonbc/audio-reactive-led-strip/issues). Also, please consider opening an issue if you have any questions or suggestions for improving the installation process.
+If you encounter any problems running the visualization on a Raspberry Pi, please [open a new issue](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/issues). Also, please consider opening an issue if you have any questions or suggestions for improving the installation process.
 
 Download and extract all of the files in this repository onto your pi to begin.
 
@@ -202,16 +195,16 @@ Examples of typical audio sources:
 ## Virtual Audio Source
 You can use a "virtual audio device" to transfer audio playback from one application to another. This means that you can play music on your computer and connect the playback directly into the visualization program.
 
-![audio-input-sources](images/audio-source.png)
+![audio-input-sources](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/audio-source.png)
 
 ### Windows
 On Windows, you can use "Stereo Mix" to copy the audio output stream into the audio input. Stereo Mix is only support on certain audio chipsets. If your chipset does not support Stereo Mix, you can use a third-party application such as [Voicemeeter](http://vb-audio.pagesperso-orange.fr/Voicemeeter/).
 
-![show-stereomix](images/stereo-show.png)
+![show-stereomix](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/stereo-show.png)
 
 Go to recording devices under Windows Sound settings (Control Panel -> Sound). In the right-click menu, select "Show Disabled Devices".
 
-![enable-stereomix](images/stereo-enable.png)
+![enable-stereomix](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/stereo-enable.png)
 
 Enable Stereo Mix and set it as the default device. Your audio playback should now be used as the audio input source for the visualization program. If your audio chipset does not support Stereo Mix then it will not appear in the list.
 
@@ -222,17 +215,11 @@ Linux users can use [Jack Audio](http://jackaudio.org/) to create a virtual audi
 On OSX, [Loopback](https://www.rogueamoeba.com/loopback/) can be use to create a virtual audio device.
 
 # Running the Visualization
-Once everything has been configured, run [visualization.py](python/visualization.py) to start the visualization. The visualization will automatically use your default recording device (microphone) as the audio input.
+Once everything has been configured, run [visualization.py](python-visualizer/visualization.py) to start the visualization. The visualization will automatically use your default recording device (microphone) as the audio input.
 
-A PyQtGraph GUI will open to display the output of the visualization on the computer. There is a setting to enable/disable the GUI display in [config.py](python/config.py)
+A PyQtGraph GUI will open to display the output of the visualization on the computer. There is a setting to enable/disable the GUI display in [config.py](python-visualizer/config.py)
 
-![visualization-gui](images/visualization-gui.png)
-
-If you encounter any issues or have questions about this project, feel free to [open a new issue](https://github.com/scottlawsonbc/audio-reactive-led-strip/issues).
-
-# Limitations
-* ESP8266 supports a maximum of 256 LEDs. This limitation will be removed in a future update. The Raspberry Pi can use more than 256 LEDs.
-* Even numbers of pixels must be used. For example, if you have 71 pixels then use the next lowest even number, 70. Odd pixel quantities will be supported in a future update.
+![visualization-gui](https://github.com/scottlawsonbc/audio-reactive-led-strip/blob/master/images/visualization-gui.png)
 
 # License
 This project was developed by Scott Lawson and is released under the MIT License.
