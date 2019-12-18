@@ -453,13 +453,14 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.begin(115200);
+  int numleds = config.numleds;
   if (config.technology == 1) {
-    FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, config.numleds);
+    FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, numleds);
     Serial.print("Setting APA102 ");
     technology = "APA102";
   }
   else {
-    FastLED.addLeds<WS2811, 7, COLOR_ORDER>(leds, config.numleds);
+    FastLED.addLeds<WS2811, 13, COLOR_ORDER>(leds, numleds);
     Serial.print("Setting WS2811 ");
     technology = "WS2811";
   }
