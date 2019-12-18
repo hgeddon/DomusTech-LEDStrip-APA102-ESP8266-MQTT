@@ -13,30 +13,6 @@ Added a visualizer effect that work by receiving RAW pixel from UDP socket, thos
 
 Added web configurator, when no setted up the ESP8266 create a Wifi AP and host a configuration web page, when the builtin led start to
 flash rapidly you can connect to the network (default name DomusTech-LED) an go to [192.168.4.1](http://192.168.4.1) to set up all variables, you can reset those settings by pushing the flash builtin button of the NodeMCU (GPIO0, D3)
-#####  Copyright
-Main ESP8266 source code : [BRUH Automation](https://github.com/bruhautomation)
-
-Added effects            : [Scott (Fma965)](https://github.com/Fma965)
-
-UDP Visualizer           : [Scott Lawson](https://github.com/scottlawsonbc)
-
-Conbtinious Integration  : [Adafruit](https://github.com/adafruit)
-
-FastLED SPI for ESP8266  : [Benoit Anastay](https://github.com/BenoitAnastay)
-
-FastLED Animation Library : [FastLED](https://github.com/FastLED)
-
-Webserver for wifi setup : [Christopher Strider Cook](https://github.com/chriscook8)
-
-Arduino Client for MQTT  : [Nick O'Leary](https://github.com/knolleary)
-
-Arduino JSON library     : [Benoît Blanchon](https://github.com/bblanchon)
-
-Arduino SDK              : [Arduino](https://github.com/arduino)
-
-ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
-
-NodeMCU Flasher          :[Rui Huang](https://github.com/vowstar)
 #### Supported Features Include
 - RGB Color Selection
 - Brightness 
@@ -127,3 +103,27 @@ pip install numpy scipy pyqtgraph pyaudio
 ```
 
 The you can run `python-visualizer/visualization.py`
+#  Copyright
+Main ESP8266 source code : [BRUH Automation](https://github.com/bruhautomation)
+
+Added effects            : [Scott (Fma965)](https://github.com/Fma965)
+
+UDP Visualizer           : [Scott Lawson](https://github.com/scottlawsonbc)
+
+Conbtinious Integration  : [Adafruit](https://github.com/adafruit)
+
+FastLED SPI for ESP8266  : [Benoit Anastay](https://github.com/BenoitAnastay)
+
+FastLED Animation Library : [FastLED](https://github.com/FastLED)
+
+Webserver for wifi setup : [Christopher Strider Cook](https://github.com/chriscook8)
+
+Arduino Client for MQTT  : [Nick O'Leary](https://github.com/knolleary)
+
+Arduino JSON library     : [Benoît Blanchon](https://github.com/bblanchon)
+
+Arduino SDK              : [Arduino](https://github.com/arduino)
+
+ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
+
+NodeMCU Flasher          :[Rui Huang](https://github.com/vowstar)
