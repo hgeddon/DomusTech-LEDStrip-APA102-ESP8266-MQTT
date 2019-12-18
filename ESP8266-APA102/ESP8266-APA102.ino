@@ -756,9 +756,9 @@ bool processJson(char* message) {
         strcpy(config.effect, root["effect"]);
       else
         strcpy(config.effect, "error");
-      int q = sizeof(config) - sizeof(config.effect);
+      int q = sizeof(config) - sizeof(config.effect) - sizeof(config.technology)- sizeof(config.numleds);
       Serial.println("writing eeprom effect:");
-      for (int i = 0; i < strlen(config.effect); ++i)
+      for (int i = 0; i < sizeof(config.effect); ++i)
       {
         EEPROM.write(q + i, config.effect[i]);
         Serial.print("Wrote: ");
