@@ -36,6 +36,7 @@ Arduino SDK              : [Arduino](https://github.com/arduino)
 
 ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
 
+NodeMCU Flasher          :[Rui Huang](https://github.com/vowstar)
 #### Supported Features Include
 - RGB Color Selection
 - Brightness 
