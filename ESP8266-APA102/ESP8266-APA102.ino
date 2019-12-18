@@ -68,7 +68,7 @@ String oldeffectString = "solid";
 
 /****************************************FOR JSON***************************************/
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(10);
-#define MQTT_MAX_PACKET_SIZE 512
+#define MQTT_MAX_PACKET_SIZE 2048
 
 /*********************************** FastLED Defintions ********************************/
 #define NUM_LEDS    576
@@ -665,6 +665,9 @@ bool processJson(char* message) {
     if (root.containsKey("transition")) {
       transitionTime = root["transition"];
     }
+    if (root.containsKey("white_value")) {
+      transitionTime = map(root["white_value"], 0, 255, 1, 150);
+    }
     else if ( effectString == "solid") {
       transitionTime = 0;
     }
@@ -726,6 +729,9 @@ bool processJson(char* message) {
     if (root.containsKey("transition")) {
       transitionTime = root["transition"];
     }
+    if (root.containsKey("white_value")) {
+      transitionTime = map(root["white_value"], 0, 255, 1, 150);
+    }
     else if ( effectString == "solid") {
       transitionTime = 0;
     }
@@ -749,6 +755,8 @@ void sendState() {
 
   root["brightness"] = brightness;
   root["effect"] = effectString.c_str();
+  root["white_value"] = map(transitionTime, 1, 150, 0, 255);
+
 
   char buffer[measureJson(root) + 1];
   serializeJson(root, buffer, measureJson(root) + 1);
@@ -779,6 +787,70 @@ void reconnect() {
       // Wait 5 seconds before retrying
       delay(5000);
     }
+    char* endpoint_state    = new char[sizeof("domustech/") + strlen(config.name)];
+    sprintf(endpoint_state, "domustech/%s", config.name);
+    char* endpoint    = new char[sizeof("domustech/") + strlen(config.name) + strlen("/set")];
+    sprintf(endpoint, "domustech/%s/set", config.name);
+    DynamicJsonDocument root(1024);
+    DynamicJsonDocument effect_list(1024);
+    effect_list.add("Visualizer");
+    effect_list.add("Christmas");
+    effect_list.add("Music - L2R");
+    effect_list.add("Music - Middle");
+    effect_list.add("Music - Fma965");
+    effect_list.add("bpm");
+    effect_list.add("candy cane");
+    effect_list.add("confetti");
+    effect_list.add("cyclon rainbow");
+    effect_list.add("dots");
+    effect_list.add("fire");
+    effect_list.add("glitter");
+    effect_list.add("juggle");
+    effect_list.add("lightning");
+    effect_list.add("noise");
+    effect_list.add("police all");
+    effect_list.add("police one");
+    effect_list.add("rainbow");
+    effect_list.add("rainbow with glitter");
+    effect_list.add("ripple");
+    effect_list.add("twinkle");
+    effect_list.add("sinelon");
+    effect_list.add("sine hue");
+    effect_list.add("full hue");
+    effect_list.add("breathe");
+    effect_list.add("hue breathe");
+    effect_list.add("Christmas bounce");
+    effect_list.add("christmas alternate");
+    effect_list.add("random stars");
+    effect_list.add("St Patty");
+    effect_list.add("Valentine");
+    effect_list.add("Turkey Day");
+    effect_list.add("Thanksgiving");
+    effect_list.add("USA");
+    effect_list.add("Independence");
+    effect_list.add("Halloween");
+    effect_list.add("Go Lions");
+    effect_list.add("Hail");
+    effect_list.add("Touchdown");
+    effect_list.add("Punkin");
+    effect_list.add("Lovey Day");
+    effect_list.add("Holly Jolly");
+    root["name"] = config.name;
+    root["platform"] = "mqtt_json";
+    root["state_topic"] = endpoint_state;
+    root["command_topic"] = endpoint;
+    root["brightness"] = true;
+    root["rgb"] = true;
+    root["white_value"] = true;
+    root["color_temp"] = false;
+    root["effect"] = true;
+    root["effect_list"] = effect_list;
+    serializeJson(root, Serial);
+    char buffer[measureJson(root) + 1];
+    serializeJson(root, buffer, measureJson(root) + 1);
+    char* endpoint_config    = new char[sizeof("homeassistant/light/") + strlen(config.name) + strlen("/config")];
+    sprintf(endpoint_config, "homeassistant/light/%s/config", config.name);
+    client.publish(endpoint_config, buffer, true);
   }
   digitalWrite(LED_BUILTIN, HIGH);
 }
