@@ -23,6 +23,7 @@
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define ESP8266_SPI
 #define FASTLED_ALL_PINS_HARDWARE_SPI
+#define MQTT_MAX_PACKET_SIZE 2048
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
@@ -71,7 +72,6 @@ String oldeffectString = "solid";
 
 /****************************************FOR JSON***************************************/
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(10);
-#define MQTT_MAX_PACKET_SIZE 2048
 
 /*********************************** FastLED Defintions ********************************/
 #define NUM_LEDS    576
