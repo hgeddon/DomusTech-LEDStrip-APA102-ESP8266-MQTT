@@ -19,7 +19,7 @@
       - PubSubClient
       - ArduinoJSON
 */
-
+#define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define ESP8266_SPI
 #define FASTLED_ALL_PINS_HARDWARE_SPI
@@ -460,7 +460,7 @@ void setup() {
     technology = "APA102";
   }
   else {
-    FastLED.addLeds<WS2811, 13, COLOR_ORDER>(leds, numleds);
+    FastLED.addLeds<WS2811, 7, COLOR_ORDER>(leds, numleds);
     Serial.print("Setting WS2811 ");
     technology = "WS2811";
   }
