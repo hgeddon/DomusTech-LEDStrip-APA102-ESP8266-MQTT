@@ -41,6 +41,7 @@ struct {
   char mqtt_server[32] = "";
   char mqtt_username[32] = "";
   char mqtt_password[64] = "";
+  char effect[32] = "";
 } config;
 
 /************ WIFI and MQTT Information (CHANGE THESE FOR YOUR SETUP) ******************/
@@ -458,6 +459,8 @@ void setup() {
   setup_wifi();
   client.setServer(config.mqtt_server, mqtt_port);
   client.setCallback(callback);
+  effectString = config.effect;
+  Serial.println(effectString);
   //Visualizer
   port.begin(localPort);
 
@@ -521,7 +524,7 @@ void setup_wifi() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(config.ssid, config.password);
-  if (config.ssid == '\0')
+  if (config.ssid[0] == '\0')
   {
     Serial.println("Turning the HotSpot On");
     launchWeb();
@@ -703,6 +706,21 @@ bool processJson(char* message) {
       effect = root["effect"];
       effectString = effect;
       twinklecounter = 0; //manage twinklecounter
+      if (strlen(root["effect"]) < 32)
+        strcpy(config.effect, root["effect"]);
+      else
+        strcpy(config.effect, "error");
+      int q = sizeof(config) - sizeof(config.effect);
+      Serial.println("writing eeprom effect:");
+      for (int i = 0; i < strlen(config.effect); ++i)
+      {
+        EEPROM.write(q + i, config.effect[i]);
+        Serial.print("Wrote: ");
+        Serial.println(config.effect[i]);
+      }
+      noInterrupts();
+      EEPROM.commit();
+      interrupts();
     }
 
     if (root.containsKey("transition")) {
@@ -2136,7 +2154,7 @@ void createWebServer()
         }
         q += sizeof(config.password);
         Serial.println("writing eeprom sensorname:");
-        for (int i = 0; i < qpass.length(); ++i)
+        for (int i = 0; i < sensorname.length(); ++i)
         {
           EEPROM.write(q + i, sensorname[i]);
           Serial.print("Wrote: ");
@@ -2144,7 +2162,7 @@ void createWebServer()
         }
         q += sizeof(config.name);
         Serial.println("writing eeprom otapass:");
-        for (int i = 0; i < qpass.length(); ++i)
+        for (int i = 0; i < otapass.length(); ++i)
         {
           EEPROM.write(q + i, otapass[i]);
           Serial.print("Wrote: ");
@@ -2152,7 +2170,7 @@ void createWebServer()
         }
         q += sizeof(config.OTApassword);
         Serial.println("writing eeprom mqttserver:");
-        for (int i = 0; i < qpass.length(); ++i)
+        for (int i = 0; i < mqttserver.length(); ++i)
         {
           EEPROM.write(q + i, mqttserver[i]);
           Serial.print("Wrote: ");
@@ -2160,7 +2178,7 @@ void createWebServer()
         }
         q += sizeof(config.mqtt_server);
         Serial.println("writing eeprom mqttuser:");
-        for (int i = 0; i < qpass.length(); ++i)
+        for (int i = 0; i < mqttuser.length(); ++i)
         {
           EEPROM.write(q + i, mqttuser[i]);
           Serial.print("Wrote: ");
@@ -2168,14 +2186,14 @@ void createWebServer()
         }
         q += sizeof(config.mqtt_username);
         Serial.println("writing eeprom mqttpass:");
-        for (int i = 0; i < qpass.length(); ++i)
+        for (int i = 0; i < mqttpass.length(); ++i)
         {
           EEPROM.write(q + i, mqttpass[i]);
           Serial.print("Wrote: ");
           Serial.println(mqttpass[i]);
         }
         q += sizeof(config.mqtt_password);
-        Serial.println(q + 64);
+        Serial.println(q);
         noInterrupts();
         EEPROM.commit();
         interrupts();
