@@ -459,7 +459,7 @@ void setup() {
     technology = "APA102";
   }
   else {
-    FastLED.addLeds<WS2811, DATA_PIN, COLOR_ORDER>(leds, config.numleds);
+    FastLED.addLeds<WS2811, 7, COLOR_ORDER>(leds, config.numleds);
     Serial.print("Setting WS2811 ");
     technology = "WS2811";
   }
