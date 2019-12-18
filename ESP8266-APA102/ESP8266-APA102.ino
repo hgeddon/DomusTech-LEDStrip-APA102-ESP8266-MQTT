@@ -43,8 +43,16 @@ struct {
   char mqtt_username[32] = "";
   char mqtt_password[64] = "";
   char effect[32] = "";
+  int  numleds = 0;
+  int technology = 0;
 } config;
-
+int getEEPROM() {
+  EEPROM.begin(sizeof (config)); //Initialasing EEPROM
+  EEPROM.get(0, config);
+  return 0;
+}
+int EEPROMres = getEEPROM();
+String technology;
 /************ WIFI and MQTT Information (CHANGE THESE FOR YOUR SETUP) ******************/
 const int mqtt_port = 1883;
 //Visualizer
@@ -74,10 +82,8 @@ String oldeffectString = "solid";
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(10);
 
 /*********************************** FastLED Defintions ********************************/
-#define NUM_LEDS    576
 #define DATA_PIN    7
 #define CLOCK_PIN 5
-#define CHIPSET     APA102
 #define COLOR_ORDER BGR
 
 byte realRed = 0;
@@ -396,8 +402,8 @@ uint8_t ledlen;
 int lightningcounter = 0;
 
 //FUNKBOX
-int idex = 0;                //-LED INDEX (0 to NUM_LEDS-1
-int TOP_INDEX = int(NUM_LEDS / 2);
+int idex = 0;                //-LED INDEX (0 to config.numleds-1
+int TOP_INDEX = config.numleds / 2;
 int thissat = 255;           //-FX LOOPS DELAY VAR
 
 //////////////////add thishue__ for Police All custom effects here/////////////////////////////////////////////////////////
@@ -410,7 +416,7 @@ uint8_t thishueLovey = 0;
 int antipodal_index(int i) {
   int iN = i + TOP_INDEX;
   if (i >= TOP_INDEX) {
-    iN = ( i + TOP_INDEX ) % NUM_LEDS;
+    iN = ( i + TOP_INDEX ) % config.numleds;
   }
   return iN;
 }
@@ -426,17 +432,13 @@ uint8_t gHue = 0;
 //CHRISTMAS
 int toggle = 0;
 
-//RANDOM STARS
-const int NUM_STARS = NUM_LEDS / 10;
-static int stars[NUM_STARS];
-
 //SINE HUE
 int hue_index = 0;
 int led_index = 0;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-struct CRGB leds[NUM_LEDS];
+struct CRGB leds[576];
 WiFiUDP port;
 
 int LED_state = HIGH;
@@ -445,15 +447,26 @@ long longPressTime = 6000;
 
 boolean buttonActive = false;
 boolean longPressActive = false;
-
-
 /********************************** START SETUP*****************************************/
 void setup() {
   pinMode(0, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.begin(115200);
-  FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, NUM_LEDS);
+  if (config.technology == 1) {
+    FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, config.numleds);
+    Serial.print("Setting APA102 ");
+    technology = "APA102";
+  }
+  else {
+    FastLED.addLeds<WS2811, DATA_PIN, COLOR_ORDER>(leds, config.numleds);
+    Serial.print("Setting WS2811 ");
+    technology = "WS2811";
+  }
+  Serial.print(technology);
+  Serial.println(config.numleds);
+
+
   setupStripedPalette( CRGB::Red, CRGB::Red, CRGB::White, CRGB::White); //for CANDY CANE
   setupThxPalette( CRGB::OrangeRed, CRGB::Olive, CRGB::Maroon, CRGB::Maroon); //for Thanksgiving
   setupHailPalette( CRGB::Blue, CRGB::Blue, CRGB::White, CRGB::White); //for HAIL
@@ -543,8 +556,6 @@ void setup_wifi() {
   delay(10);
   Serial.println("Disconnecting previously connected WiFi");
   WiFi.disconnect();
-  EEPROM.begin(sizeof (config)); //Initialasing EEPROM
-  EEPROM.get(0, config);
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
@@ -558,7 +569,7 @@ void setup_wifi() {
     launchWeb();
     setupAP();// Setup HotSpot
   }
-  if (testWifi())
+  else if (testWifi())
   {
     Serial.println("");
     Serial.println("WiFi connected");
@@ -574,11 +585,14 @@ void setup_wifi() {
   }
 
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(100);
+    if ((millis() % 100) == 0) {
+      Serial.print(".");
+      led_flash();
+      delay(10);
+    }
     server.handleClient();
     handle_input();
-    led_flash();
+    effects();
   }
 }
 
@@ -822,7 +836,7 @@ void reconnect() {
 
 /********************************** START Set Color*****************************************/
 void setColor(int inR, int inG, int inB) {
-  for (int i = 0; i < NUM_LEDS; i++) {
+  for (int i = 0; i < config.numleds; i++) {
     leds[i].red   = inR;
     leds[i].green = inG;
     leds[i].blue  = inB;
@@ -842,6 +856,17 @@ void setColor(int inR, int inG, int inB) {
 /********************************** START MAIN LOOP*****************************************/
 void loop() {
   handle_input();
+  if (!client.connected()) {
+    reconnect();
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    delay(1);
+    Serial.print("WIFI Disconnected. Attempting reconnection.");
+    setup_wifi();
+    return;
+  }
+
+  client.loop();
   digitalWrite(LED_BUILTIN, HIGH); //Tempory there because the LED stay on even when setup is end
   // Read data over socket
   int packetSize = port.parsePacket();
@@ -865,18 +890,6 @@ void loop() {
   }
 }
 void effects() {
-  if (!client.connected()) {
-    reconnect();
-  }
-
-  if (WiFi.status() != WL_CONNECTED) {
-    delay(1);
-    Serial.print("WIFI Disconnected. Attempting reconnection.");
-    setup_wifi();
-    return;
-  }
-
-  client.loop();
 
   ArduinoOTA.handle();
 
@@ -909,7 +922,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_xmas_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -923,7 +936,7 @@ void effects() {
     static uint8_t startIndex = 0;
     startIndex = startIndex + floor(transitionTime / 10);
     CRGBPalette16 palette = bhw2_xmas_gp_b;
-    fill_palette( leds, NUM_LEDS, startIndex, 3, palette, 255, LINEARBLEND);
+    fill_palette( leds, config.numleds, startIndex, 3, palette, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
     }
@@ -935,7 +948,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_greenman_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -949,7 +962,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_redrosey_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -963,7 +976,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw2_thanks_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -977,7 +990,7 @@ void effects() {
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
 
-    fill_palette( leds, NUM_LEDS,
+    fill_palette( leds, config.numleds,
                   startIndex, 16, /* higher = narrower stripes */
                   ThxPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -991,7 +1004,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = bhw3_41_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1005,7 +1018,7 @@ void effects() {
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
 
-    fill_palette( leds, NUM_LEDS,
+    fill_palette( leds, config.numleds,
                   startIndex, 16, /* higher = narrower stripes */
                   IndPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1020,7 +1033,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = Orange_to_Purple_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1034,7 +1047,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = PSU_gp;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1048,7 +1061,7 @@ void effects() {
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
 
-    fill_palette( leds, NUM_LEDS,
+    fill_palette( leds, config.numleds,
                   startIndex, 16, /* higher = narrower stripes */
                   hailPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1060,7 +1073,7 @@ void effects() {
 
   if (effectString == "Touchdown") {                 //<strike>Maize and</strike> Blue & White with POLICE ALL animation
     idex++;
-    if (idex >= NUM_LEDS) {
+    if (idex >= config.numleds) {
       idex = 0;
     }
     int idexY = idex;
@@ -1079,7 +1092,7 @@ void effects() {
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
 
-    fill_palette( leds, NUM_LEDS,
+    fill_palette( leds, config.numleds,
                   startIndex, 16, /* higher = narrower stripes */
                   HalloweenPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1091,7 +1104,7 @@ void effects() {
 
   if (effectString == "Lovey Day") {                 //Valentine's Day colors (TWO COLOR SOLID)
     idex++;
-    if (idex >= NUM_LEDS) {
+    if (idex >= config.numleds) {
       idex = 0;
     }
     int idexR = idex;
@@ -1110,7 +1123,7 @@ void effects() {
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
 
-    fill_palette( leds, NUM_LEDS,
+    fill_palette( leds, config.numleds,
                   startIndex, 16, /* higher = narrower stripes */
                   HJPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1139,7 +1152,7 @@ void effects() {
     uint8_t BeatsPerMinute = 62;
     CRGBPalette16 palette = PartyColors_p;
     uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+    for ( int i = 0; i < config.numleds; i++) { //9948
       leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
     }
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1154,7 +1167,7 @@ void effects() {
   if (effectString == "candy cane") {
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* higher = faster motion */
-    fill_palette( leds, NUM_LEDS,
+    fill_palette( leds, config.numleds,
                   startIndex, 16, /* higher = narrower stripes */
                   currentPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1167,8 +1180,8 @@ void effects() {
 
   //EFFECT CONFETTI
   if (effectString == "confetti" ) {
-    fadeToBlackBy( leds, NUM_LEDS, 25);
-    int pos = random16(NUM_LEDS);
+    fadeToBlackBy( leds, config.numleds, 25);
+    int pos = random16(config.numleds);
     leds[pos] += CRGB(realRed + random8(64), realGreen, realBlue);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
@@ -1182,7 +1195,7 @@ void effects() {
   if (effectString == "cyclon rainbow") {                    //Single Dot Down
     static uint8_t hue = 0;
     // First slide the led in one direction
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < config.numleds; i++) {
       // Set the i'th led to red
       leds[i] = CHSV(hue++, 255, 255);
       // Show the leds
@@ -1194,7 +1207,7 @@ void effects() {
       // Wait a little bit before we loop around and do it again
       delay(10);
     }
-    for (int i = (NUM_LEDS) - 1; i >= 0; i--) {
+    for (int i = (config.numleds) - 1; i >= 0; i--) {
       // Set the i'th led to red
       leds[i] = CHSV(hue++, 255, 255);
       // Show the leds
@@ -1211,13 +1224,13 @@ void effects() {
 
   //EFFECT DOTS
   if (effectString == "dots") {
-    uint8_t inner = beatsin8(bpm, NUM_LEDS / 4, NUM_LEDS / 4 * 3);
-    uint8_t outer = beatsin8(bpm, 0, NUM_LEDS - 1);
-    uint8_t middle = beatsin8(bpm, NUM_LEDS / 3, NUM_LEDS / 3 * 2);
+    uint8_t inner = beatsin8(bpm, config.numleds / 4, config.numleds / 4 * 3);
+    uint8_t outer = beatsin8(bpm, 0, config.numleds - 1);
+    uint8_t middle = beatsin8(bpm, config.numleds / 3, config.numleds / 3 * 2);
     leds[middle] = CRGB::Purple;
     leds[inner] = CRGB::Blue;
     leds[outer] = CRGB::Aqua;
-    nscale8(leds, NUM_LEDS, fadeval);
+    nscale8(leds, config.numleds, fadeval);
 
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
@@ -1242,7 +1255,7 @@ void effects() {
 
   //EFFECT Glitter
   if (effectString == "glitter") {
-    fadeToBlackBy( leds, NUM_LEDS, 20);
+    fadeToBlackBy( leds, config.numleds, 20);
     addGlitterColor(80, realRed, realGreen, realBlue);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 30;
@@ -1254,9 +1267,9 @@ void effects() {
 
   //EFFECT JUGGLE
   if (effectString == "juggle" ) {                           // eight colored dots, weaving in and out of sync with each other
-    fadeToBlackBy(leds, NUM_LEDS, 20);
+    fadeToBlackBy(leds, config.numleds, 20);
     for (int i = 0; i < 8; i++) {
-      leds[beatsin16(i + 7, 0, NUM_LEDS - 1  )] |= CRGB(realRed, realGreen, realBlue);
+      leds[beatsin16(i + 7, 0, config.numleds - 1  )] |= CRGB(realRed, realGreen, realBlue);
     }
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 130;
@@ -1273,8 +1286,8 @@ void effects() {
       FastLED.clear();
       FastLED.show();
     }
-    ledstart = random16(NUM_LEDS);           // Determine starting location of flash
-    ledlen = random16(NUM_LEDS - ledstart);  // Determine length of flash (not to go beyond NUM_LEDS-1)
+    ledstart = random16(config.numleds);           // Determine starting location of flash
+    ledlen = random16(config.numleds - ledstart);  // Determine length of flash (not to go beyond config.numleds-1)
     for (int flashCounter = 0; flashCounter < random8(3, flashes); flashCounter++) {
       if (flashCounter == 0) dimmer = 5;    // the brightness of the leader is scaled down by a factor of 5
       else dimmer = random8(1, 3);          // return strokes are brighter than the leader
@@ -1298,7 +1311,7 @@ void effects() {
   //EFFECT POLICE ALL
   if (effectString == "police all") {                 //POLICE LIGHTS (TWO COLOR SOLID)
     idex++;
-    if (idex >= NUM_LEDS) {
+    if (idex >= config.numleds) {
       idex = 0;
     }
     int idexR = idex;
@@ -1316,13 +1329,13 @@ void effects() {
   //EFFECT POLICE ONE
   if (effectString == "police one") {
     idex++;
-    if (idex >= NUM_LEDS) {
+    if (idex >= config.numleds) {
       idex = 0;
     }
     int idexR = idex;
     int idexB = antipodal_index(idexR);
     int thathue = (thishuepolice + 160) % 255;
-    for (int i = 0; i < NUM_LEDS; i++ ) {
+    for (int i = 0; i < config.numleds; i++ ) {
       if (i == idexR) {
         leds[i] = CHSV(thishuepolice, thissat, 255);
       }
@@ -1345,7 +1358,7 @@ void effects() {
   if (effectString == "rainbow") {
     // FastLED's built-in rainbow generator
     static uint8_t starthue = 0;    thishue++;
-    fill_rainbow(leds, NUM_LEDS, thishue, deltahue);
+    fill_rainbow(leds, config.numleds, thishue, deltahue);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 130;
     }
@@ -1358,7 +1371,7 @@ void effects() {
   if (effectString == "rainbow with glitter") {               // FastLED's built-in rainbow generator with Glitter
     static uint8_t starthue = 0;
     thishue++;
-    fill_rainbow(leds, NUM_LEDS, thishue, deltahue);
+    fill_rainbow(leds, config.numleds, thishue, deltahue);
     addGlitter(80);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 130;
@@ -1370,8 +1383,8 @@ void effects() {
 
   //EFFECT SINELON
   if (effectString == "sinelon") {
-    fadeToBlackBy( leds, NUM_LEDS, 20);
-    int pos = beatsin16(13, 0, NUM_LEDS - 1);
+    fadeToBlackBy( leds, config.numleds, 20);
+    int pos = beatsin16(13, 0, config.numleds - 1);
     leds[pos] += CRGB(realRed, realGreen, realBlue);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 150;
@@ -1389,7 +1402,7 @@ void effects() {
       FastLED.show();
     }
     const CRGB lightcolor(8, 7, 1);
-    for ( int i = 0; i < NUM_LEDS; i++) {
+    for ( int i = 0; i < config.numleds; i++) {
       if ( !leds[i]) continue; // skip black pixels
       if ( leds[i].r & 1) { // is red odd?
         leds[i] -= lightcolor; // darken if red is odd
@@ -1398,7 +1411,7 @@ void effects() {
       }
     }
     if ( random8() < DENSITY) {
-      int j = random16(NUM_LEDS);
+      int j = random16(config.numleds);
       if ( !leds[j] ) leds[j] = lightcolor;
     }
 
@@ -1411,7 +1424,7 @@ void effects() {
 
   //EFFECT CHRISTMAS ALTERNATE
   if (effectString == "christmas alternate") {
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < config.numleds; i++) {
       if ((toggle + i) % 2 == 0) {
         leds[i] = CRGB::Crimson;
       }
@@ -1431,8 +1444,8 @@ void effects() {
 
   //EFFECT RANDOM STARS
   if (effectString == "random stars") {
-    fadeUsingColor( leds, NUM_LEDS, CRGB::Blue);
-    int pos = random16(NUM_LEDS);
+    fadeUsingColor( leds, config.numleds, CRGB::Blue);
+    int pos = random16(config.numleds);
     leds[pos] += CRGB(realRed + random8(64), realGreen, realBlue);
     addGlitter(80);
     if (transitionTime == 0 or transitionTime == NULL) {
@@ -1448,12 +1461,12 @@ void effects() {
   if (effectString == "sine hue") {
     static uint8_t hue_index = 0;
     static uint8_t led_index = 0;
-    if (led_index >= NUM_LEDS) {  //Start off at 0 if the led_index was incremented past the segment size in some other effect
+    if (led_index >= config.numleds) {  //Start off at 0 if the led_index was incremented past the segment size in some other effect
       led_index = 0;
     }
-    for (int i = 0; i < NUM_LEDS; i = i + 1)
+    for (int i = 0; i < config.numleds; i = i + 1)
     {
-      leds[i] = CHSV(hue_index, 255, 255 - int(abs(sin(float(i + led_index) / NUM_LEDS * 2 * 3.14159) * 255)));
+      leds[i] = CHSV(hue_index, 255, 255 - int(abs(sin(float(i + led_index) / config.numleds * 2 * 3.14159) * 255)));
     }
 
     led_index++, hue_index++;
@@ -1469,7 +1482,7 @@ void effects() {
   //EFFECT "Full Hue"
   if (effectString == "full hue") {
     static uint8_t hue_index = 0;
-    fill_solid(leds, NUM_LEDS, CHSV(hue_index, 255, 255));
+    fill_solid(leds, config.numleds, CHSV(hue_index, 255, 255));
     hue_index++;
 
     if (hue_index >= 255) {
@@ -1484,7 +1497,7 @@ void effects() {
   if (effectString == "breathe") {
     static bool toggle;
     static uint8_t brightness_index = 0;
-    fill_solid(leds, NUM_LEDS, CHSV(thishue, 255, brightness_index));
+    fill_solid(leds, config.numleds, CHSV(thishue, 255, brightness_index));
     if (brightness_index >= 255) {
       toggle = 0;
     }
@@ -1512,7 +1525,7 @@ void effects() {
     static uint8_t hue_index = 0;
     static bool toggle = 1;
     static uint8_t brightness_index = 0;
-    fill_solid(leds, NUM_LEDS, CHSV(hue_index, 255, brightness_index));
+    fill_solid(leds, config.numleds, CHSV(hue_index, 255, brightness_index));
     if (brightness_index >= 255) {
       toggle = 0;
       hue_index = hue_index + 10;
@@ -1548,7 +1561,7 @@ void effects() {
 
     //EFFECT NOISE
     if (effectString == "noise") {
-      for (int i = 0; i < NUM_LEDS; i++) {                                     // Just onE loop to fill up the LED array as all of the pixels change.
+      for (int i = 0; i < config.numleds; i++) {                                     // Just onE loop to fill up the LED array as all of the pixels change.
         uint8_t index = inoise8(i * scale, dist + i * scale) % 255;            // Get a value from the noise function. I'm using both x and y axis.
         leds[i] = ColorFromPalette(currentPalette, index, 255, LINEARBLEND);   // With that value, look up the 8 bit colour palette value and assign it to the current LED.
       }
@@ -1563,10 +1576,10 @@ void effects() {
 
     //EFFECT RIPPLE
     if (effectString == "ripple") {
-      for (int i = 0; i < NUM_LEDS; i++) leds[i] = CHSV(bgcol++, 255, 15);  // Rotate background colour.
+      for (int i = 0; i < config.numleds; i++) leds[i] = CHSV(bgcol++, 255, 15);  // Rotate background colour.
       switch (step) {
         case -1:                                                          // Initialize ripple variables.
-          center = random(NUM_LEDS);
+          center = random(config.numleds);
           colour = random8();
           step = 0;
           break;
@@ -1578,8 +1591,8 @@ void effects() {
           step = -1;
           break;
         default:                                                             // Middle of the ripples.
-          leds[(center + step + NUM_LEDS) % NUM_LEDS] += CHSV(colour, 255, myfade / step * 2);   // Simple wrap from Marc Miller
-          leds[(center - step + NUM_LEDS) % NUM_LEDS] += CHSV(colour, 255, myfade / step * 2);
+          leds[(center + step + config.numleds) % config.numleds] += CHSV(colour, 255, myfade / step * 2);   // Simple wrap from Marc Miller
+          leds[(center - step + config.numleds) % config.numleds] += CHSV(colour, 255, myfade / step * 2);
           step ++;                                                         // Next step.
           break;
       }
@@ -1782,7 +1795,7 @@ void setupHalloweenPalette( CRGB A, CRGB AB, CRGB B, CRGB BA)
 
 /********************************** START FADE************************************************/
 void fadeall() {
-  for (int i = 0; i < NUM_LEDS; i++) {
+  for (int i = 0; i < config.numleds; i++) {
     leds[i].nscale8(250);  //for CYCLon
   }
 }
@@ -1791,15 +1804,15 @@ void fadeall() {
 void Fire2012WithPalette()
 {
   // Array of temperature readings at each simulation cell
-  static byte heat[NUM_LEDS];
+  static byte heat[576];
 
   // Step 1.  Cool down every cell a little
-  for ( int i = 0; i < NUM_LEDS; i++) {
-    heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
+  for ( int i = 0; i < config.numleds; i++) {
+    heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / config.numleds) + 2));
   }
 
   // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-  for ( int k = NUM_LEDS - 1; k >= 2; k--) {
+  for ( int k = config.numleds - 1; k >= 2; k--) {
     heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
   }
 
@@ -1810,14 +1823,14 @@ void Fire2012WithPalette()
   }
 
   // Step 4.  Map from heat cells to LED colors
-  for ( int j = 0; j < NUM_LEDS; j++) {
+  for ( int j = 0; j < config.numleds; j++) {
     // Scale the heat value from 0-255 down to 0-240
     // for best results with color palettes.
     byte colorindex = scale8( heat[j], 240);
     CRGB color = ColorFromPalette( gPal, colorindex);
     int pixelnumber;
     if ( gReverseDirection ) {
-      pixelnumber = (NUM_LEDS - 1) - j;
+      pixelnumber = (config.numleds - 1) - j;
     } else {
       pixelnumber = j;
     }
@@ -1829,7 +1842,7 @@ void Fire2012WithPalette()
 void addGlitter( fract8 chanceOfGlitter)
 {
   if ( random8() < chanceOfGlitter) {
-    leds[ random16(NUM_LEDS) ] += CRGB::White;
+    leds[ random16(config.numleds) ] += CRGB::White;
   }
 }
 
@@ -1837,7 +1850,7 @@ void addGlitter( fract8 chanceOfGlitter)
 void addGlitterColor( fract8 chanceOfGlitter, int red, int green, int blue)
 {
   if ( random8() < chanceOfGlitter) {
-    leds[ random16(NUM_LEDS) ] += CRGB(red, green, blue);
+    leds[ random16(config.numleds) ] += CRGB(red, green, blue);
   }
 }
 
@@ -1943,11 +1956,11 @@ void visualize_music(int LEDDirection)
   if (audio_input > 0)
   {
     if (LEDDirection == 1) {
-      pre_react = ((long)NUM_LEDS * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
+      pre_react = ((long)config.numleds * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
     } else if (LEDDirection == 2 || LEDDirection == 4) {
-      pre_react = ((long)NUM_LEDS / 2 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
+      pre_react = ((long)config.numleds / 2 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
     } else if (LEDDirection == 3) {
-      pre_react = ((long)NUM_LEDS / 4 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
+      pre_react = ((long)config.numleds / 4 * (long)audio_input) / 1023L; // TRANSLATE AUDIO LEVEL TO NUMBER OF LEDs
     }
 
     if (pre_react > react) // ONLY ADJUST LEVEL OF LED IF LEVEL HIGHER THAN CURRENT LEVEL
@@ -1985,7 +1998,7 @@ void visualize_music(int LEDDirection)
 // https://github.com/NeverPlayLegit/Rainbow-Fader-FastLED/blob/master/rainbow.ino
 void RainbowL2R()
 {
-  for (int i = NUM_LEDS - 1; i >= 0; i--) {
+  for (int i = config.numleds - 1; i >= 0; i--) {
     if (i < react)
       leds[i] = Scroll((i * 256 / 50 + k) % 256);
     else
@@ -1996,14 +2009,14 @@ void RainbowL2R()
 
 void RainbowMiddleOut()
 {
-  for (int i = 0; i < NUM_LEDS / 2; i++) {
+  for (int i = 0; i < config.numleds / 2; i++) {
     if (i < react) {
-      leds[NUM_LEDS / 2 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
-      leds[NUM_LEDS / 2 - i - 1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[config.numleds / 2 + i] = Scroll((i * 256 / config.numleds + k) % 256);
+      leds[config.numleds / 2 - i - 1] = Scroll((i * 256 / config.numleds + k) % 256);
     }
     else {
-      leds[NUM_LEDS / 2 + i] = CRGB(0, 0, 0);
-      leds[NUM_LEDS / 2 - i - 1] = CRGB(0, 0, 0);
+      leds[config.numleds / 2 + i] = CRGB(0, 0, 0);
+      leds[config.numleds / 2 - i - 1] = CRGB(0, 0, 0);
     }
   }
   FastLED.show();
@@ -2011,13 +2024,13 @@ void RainbowMiddleOut()
 
 void RainbowOutMiddle()
 {
-  for (int i = 0; i < NUM_LEDS / 2 + 1; i++) {
+  for (int i = 0; i < config.numleds / 2 + 1; i++) {
     if (i < react) {
-      leds[0 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
-      leds[NUM_LEDS - i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[0 + i] = Scroll((i * 256 / config.numleds + k) % 256);
+      leds[config.numleds - i] = Scroll((i * 256 / config.numleds + k) % 256);
     } else {
       leds[0 + i] = CRGB(0, 0, 0);
-      leds[NUM_LEDS - i] = CRGB(0, 0, 0);
+      leds[config.numleds - i] = CRGB(0, 0, 0);
     }
   }
   FastLED.show();
@@ -2027,8 +2040,8 @@ void RainbowFma965()
 {
   for (int i = 0; i < 21; i++) {
     if (i < react) {
-      leds[42 - i - 1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
-      leds[42 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[42 - i - 1] = Scroll((i * 256 / config.numleds + k) % 256);
+      leds[42 + i] = Scroll((i * 256 / config.numleds + k) % 256);
     } else {
       leds[42 - i - 1] = CRGB(0, 0, 0);
       leds[42 + i] = CRGB(0, 0, 0);
@@ -2036,8 +2049,8 @@ void RainbowFma965()
   }
   for (int i = 0; i < 12; i++) {
     if (i < react) {
-      leds[10 + i] = Scroll((i * 256 / NUM_LEDS + k) % 256);
-      leds[10 - i - 1] = Scroll((i * 256 / NUM_LEDS + k) % 256);
+      leds[10 + i] = Scroll((i * 256 / config.numleds + k) % 256);
+      leds[10 - i - 1] = Scroll((i * 256 / config.numleds + k) % 256);
     } else {
       leds[10 + i] = CRGB(0, 0, 0);
       leds[10 - i - 1] = CRGB(0, 0, 0);
@@ -2050,15 +2063,20 @@ void RainbowFma965()
 bool testWifi(void)
 {
   int c = 0;
+  unsigned long start_time = millis();
   Serial.println("Waiting for Wifi to connect");
-  while ( c < 60 ) {
+  while ( millis() - start_time < 60000 ) {
     handle_input();
+    effects();
     if (WiFi.status() == WL_CONNECTED)
     {
       return true;
     }
-    delay(1000);
-    Serial.print("*");
+    if ((millis() % 1000) == 0) {
+      Serial.print("*");
+      led_flash();
+      delay(10);
+    }
     c++;
   }
   Serial.println("");
@@ -2143,7 +2161,7 @@ void createWebServer()
       content += "<form action=\"/scan\" method=\"POST\"><input type=\"submit\" value=\"scan\"></form>";
       content += "<p>";
       content += st;
-      content += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid' length=32><br><label>Wifi password: </label><input name='pass' length=64><br><label>Strip name: </label><input name='sensorname' length=32><br><label>OTA password: </label><input name='otapass' length=64><br><label>MQTT Server: </label><input name='mqttserver' length=32><br><label>MQTT user: </label><input name='mqttuser' length=32><br><label>MQTT password: </label><input name='mqttpass' length=64><input type='submit'></form>";
+      content += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid' length=32><br><label>Wifi password: </label><input name='pass' length=64><br><label>Strip name: </label><input name='sensorname' length=32><br><label>OTA password: </label><input name='otapass' length=64><br><label>MQTT Server: </label><input name='mqttserver' length=32><br><label>MQTT user: </label><input name='mqttuser' length=32><br><label>MQTT password: </label><input name='mqttpass' length=64><br><label>Number of leds: </label><input type='number' name='numleds' min='1' max='576'><br><label>Leds technology: </label><input list='technology' name='technology'><datalist id='technology'><option value='1'>APA102</option><option value='2'>WS2811</option></datalist><input type='submit'></form>";
       content += "</html>";
       server.send(200, "text/html", content);
     });
@@ -2164,7 +2182,9 @@ void createWebServer()
       String mqttserver = server.arg("mqttserver");
       String mqttuser = server.arg("mqttuser");
       String mqttpass = server.arg("mqttpass");
-      if (qsid.length() > 0 && qpass.length() > 0 && sensorname.length() > 0 && otapass.length() > 0 && mqttserver.length() > 0 && mqttuser.length() > 0 && mqttpass.length() > 0) {
+      String numleds = server.arg("numleds");
+      String technology = server.arg("technology");
+      if (qsid.length() > 0 && qpass.length() > 0 && sensorname.length() > 0 && otapass.length() > 0 && mqttserver.length() > 0 && mqttuser.length() > 0 && mqttpass.length() > 0 && numleds.length() > 0 && technology.length() > 0) {
         Serial.println("clearing eeprom");
         for (int i = 0; i < sizeof(config); ++i) {
           EEPROM.write(i, 0);
@@ -2230,6 +2250,22 @@ void createWebServer()
           Serial.println(mqttpass[i]);
         }
         q += sizeof(config.mqtt_password);
+        q += sizeof(config.effect);
+        Serial.println("writing eeprom numleds:");
+        int a = numleds.toInt() & 0xFF;
+        int b = numleds.toInt() >> 8;
+        EEPROM.write(q, a);
+        EEPROM.write(q + 1, b);
+        Serial.print("Wrote: ");
+        Serial.println(numleds);
+        q += sizeof(config.numleds);
+        Serial.println("writing eeprom technology:");
+
+        EEPROM.write(q, technology.toInt());
+        Serial.print("Wrote: ");
+        Serial.println(technology);
+
+        q += sizeof(config.technology);
         Serial.println(q);
         noInterrupts();
         EEPROM.commit();
