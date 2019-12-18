@@ -29,9 +29,6 @@ Some of the effects incorporate the currrently selected color (sinelon, confetti
 
 The default speed for the effects is hard coded and is set when the light is first turned on. When changing between effects, the previously used transition speed will take over. If the effects don't look great, play around with the slider to adjust the transition speed (AKA the effect's animation speed). 
 
-#### OTA Uploading
-This code also supports remote uploading to the ESP8266 using Arduino's OTA library. To utilize this, you'll need to first upload the sketch using the traditional USB method. However, if you need to update your code after that, your WIFI-connected ESP chip should show up as an option under Tools -> Port -> Porch at your.ip.address.xxx. More information on OTA uploading can be found [here](http://esp8266.github.io/Arduino/versions/2.0.0/doc/ota_updates/ota_updates.html). Note: You cannot access the serial monitor over WIFI at this point.  
-
 #### Parts List
 - APA102 led strip
 - NodeMCU
@@ -41,10 +38,45 @@ This code also supports remote uploading to the ESP8266 using Arduino's OTA libr
 
 
 #### Wiring Diagram
-![alt text](https://github.com/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs/raw/master/Diagram.png "Wiring Diagram")
+![Diagram](https://github.com/BenoitAnastay/ESP-MQTT-JSON-Digital-LEDs/raw/master/Diagram.png "Wiring Diagram")
 
 
-#### Home Assistant Configuration
+### Home Assistant Configuration
+##### MQTT Discovery
+1. Install the [Mosquitto add-on](/addons/mosquitto/) with the default configuration via 'Hass.io > ADD-ON STORE'. (Don't forget to start the add-on & verify that 'Start on boot' is enabled.)
+
+2. Create a new user for MQTT via the `Configuration > Users (manage users)`. (Note: This name cannot be "homeassistant" or "addon")
+
+3. Once back on-line, return to `Configuration > Integrations` and select configure next to `MQTT`.
+
+```text
+  Broker: YOUR_HASSIO_IP_ADDRESS
+  Port: 1883
+  Username: MQTT_USERNAME
+  Password: MQTT_PASSWORD
+  Enable discovery: CHECKED 
+```
+
+<img src="https://i.imgur.com/mgnVneT.png | width=100" width="30%" height="30%" />
+
+3. Download [ESP8266Flasher.exe](https://github.com/BenoitAnastay/DomusTech-LEDStrip-APA102-ESP8266-MQTT/releases/latest)
+
+4. Plug your ESP8266 and click on `Flash`. (then you can disconnect the ESP8266 and plug it on a power suply)
+
+5. When the led of the ESP8266 blink quickly use a computer or a smartphone to connect on the wifi. (it will be limited, no network)
+
+6. Now go to [http://192.168.4.1](http://192.168.4.1) and enter WIFI information plus MQTT informations and a name (they are all required), click Submit and the ESP8266 will reboot.
+
+You will now have a light entity in Home Assistant named uppun the name you have inserted exemple `light.stairs`.
+
+If your entity appear nowhere it might be normaln try to edit your overview to add it.
+
+One last thing, the white value is controlling the speed of the effects
+
+###### OTA Uploading
+When asked by the webconfigurator you can set a ota login to be able tu use it with Arduino IDE
+
+##### Manual
 Copy past the [`Home Assistant/config/packages`](https://github.com/BenoitAnastay/DomusTech-LEDStrip-APA102-ESP8266-MQTT/tree/master/Home%20Assistant/config/packages) directory into Home Assistant `config` directory
 
 Now edit your `config/packages/rgb_strip.yaml` file, replace stairs by anything you want
