@@ -36,7 +36,7 @@ object FormMain: TFormMain
     ParentFont = False
     TabOrder = 0
     object LabelCopyRight: TLabel
-      Left = 28
+      Left = 32
       Top = 2
       Width = 296
       Height = 20
@@ -47,6 +47,7 @@ object FormMain: TFormMain
       Font.Name = #24494#36719#38597#40657
       Font.Style = []
       ParentFont = False
+      Visible = False
     end
     object ImageStatus: TImage
       Left = 1
@@ -114,7 +115,7 @@ object FormMain: TFormMain
         ParentFont = False
       end
       object LabelIntroduction: TLabel
-        Left = 13
+        Left = 14
         Top = 97
         Width = 146
         Height = 20
@@ -360,6 +361,7 @@ object FormMain: TFormMain
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
@@ -382,6 +384,7 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 1
+          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 31
           ExplicitWidth = 546
@@ -410,20 +413,28 @@ object FormMain: TFormMain
               end>
             ExplicitWidth = 546
             inherited CheckBoxEnable: TCheckBox
+              Enabled = False
+              Visible = False
               OnMouseLeave = FrameConfigLineChange
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
             inherited ImageOpenFile: TImage
               Left = 415
+              Enabled = False
+              Visible = False
               ExplicitLeft = 368
             end
           end
@@ -434,6 +445,7 @@ object FormMain: TFormMain
           Width = 546
           Height = 30
           Align = alTop
+          Enabled = False
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -11
@@ -441,6 +453,7 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 2
+          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 61
           ExplicitWidth = 546
@@ -473,22 +486,30 @@ object FormMain: TFormMain
             ExplicitHeight = 30
             inherited CheckBoxEnable: TCheckBox
               Height = 28
+              Enabled = False
+              Visible = False
               OnMouseLeave = FrameConfigLineChange
               ExplicitHeight = 28
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
             inherited ImageOpenFile: TImage
               Left = 415
               Height = 28
+              Enabled = False
+              Visible = False
               ExplicitLeft = 368
               ExplicitHeight = 28
             end
@@ -507,6 +528,7 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 3
+          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 91
           ExplicitWidth = 546
@@ -539,22 +561,30 @@ object FormMain: TFormMain
             ExplicitHeight = 30
             inherited CheckBoxEnable: TCheckBox
               Height = 28
+              Enabled = False
+              Visible = False
               OnMouseLeave = FrameConfigLineChange
               ExplicitHeight = 28
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
             inherited ImageOpenFile: TImage
               Left = 415
               Height = 28
+              Enabled = False
+              Visible = False
               ExplicitLeft = 368
               ExplicitHeight = 28
             end
@@ -573,6 +603,7 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 4
+          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 121
           ExplicitWidth = 546
@@ -605,22 +636,30 @@ object FormMain: TFormMain
             ExplicitHeight = 30
             inherited CheckBoxEnable: TCheckBox
               Height = 28
+              Enabled = False
+              Visible = False
               OnMouseLeave = FrameConfigLineChange
               ExplicitHeight = 28
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
             inherited ImageOpenFile: TImage
               Left = 415
               Height = 28
+              Enabled = False
+              Visible = False
               ExplicitLeft = 368
               ExplicitHeight = 28
             end
@@ -639,6 +678,7 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 5
+          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 151
           ExplicitWidth = 546
@@ -671,22 +711,30 @@ object FormMain: TFormMain
             ExplicitHeight = 30
             inherited CheckBoxEnable: TCheckBox
               Height = 28
+              Enabled = False
+              Visible = False
               OnMouseLeave = FrameConfigLineChange
               ExplicitHeight = 28
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
             inherited ImageOpenFile: TImage
               Left = 415
               Height = 28
+              Enabled = False
+              Visible = False
               ExplicitLeft = 368
               ExplicitHeight = 28
             end
@@ -705,6 +753,7 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 6
+          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 181
           ExplicitWidth = 546
@@ -737,23 +786,33 @@ object FormMain: TFormMain
             ExplicitHeight = 30
             inherited CheckBoxEnable: TCheckBox
               Height = 28
+              Enabled = False
+              Visible = False
               OnMouseLeave = FrameConfigLineChange
               ExplicitHeight = 28
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
+              Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
             end
             inherited ImageOpenFile: TImage
               Left = 415
               Height = 28
-              ExplicitLeft = 368
+              Enabled = False
+              Visible = False
+              ExplicitLeft = 409
+              ExplicitTop = 5
+              ExplicitWidth = 30
               ExplicitHeight = 28
             end
           end
@@ -763,6 +822,7 @@ object FormMain: TFormMain
     object TabSheetAdvanced: TTabSheet
       Caption = 'Advanced'
       ImageIndex = 4
+      TabVisible = False
       object LabelFlashBaudrate: TLabel
         Left = 16
         Top = 27
@@ -948,6 +1008,7 @@ object FormMain: TFormMain
     object TabSheetIntroduction: TTabSheet
       Caption = 'About'
       ImageIndex = 2
+      TabVisible = False
       object RichEditNote: TRichEdit
         Left = 0
         Top = 0
@@ -958,7 +1019,7 @@ object FormMain: TFormMain
         BevelOuter = bvNone
         BorderStyle = bsNone
         Ctl3D = False
-        Font.Charset = GB2312_CHARSET
+        Font.Charset = ANSI_CHARSET
         Font.Color = clWindowText
         Font.Height = -14
         Font.Name = #24494#36719#38597#40657
@@ -991,10 +1052,7 @@ object FormMain: TFormMain
       Font.Style = []
       ImageIndex = 1
       ParentFont = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      TabVisible = False
       object MemoOutput: TMemo
         Left = 0
         Top = 0

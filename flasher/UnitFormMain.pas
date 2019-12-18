@@ -940,7 +940,7 @@ end;
 
 procedure TFormMain.InitDataChest;
 begin
-  TStringChest[FrameConfigLine1.Name + '.FilePath'] := 'INTERNAL://NODEMCU';
+  TStringChest[FrameConfigLine1.Name + '.FilePath'] := 'INTERNAL://DOMUSTECH';
   // 'INTERNAL://FLASH';
   TStringChest[FrameConfigLine2.Name + '.FilePath'] := '';
   // 'INTERNAL://IROM';
@@ -1323,19 +1323,19 @@ begin
     TextIndex := TextIndex + 1;
     case TextIndex of
       0:
-        LabelIntroduction.Caption := 'require("nodemcu")';
+        LabelIntroduction.Caption := 'require("apa102")';
       1:
         LabelIntroduction.Caption := '';
       2:
-        LabelIntroduction.Caption := 'require("wifi")';
+        LabelIntroduction.Caption := 'require("fastled")';
       3:
         LabelIntroduction.Caption := '';
       4:
-        LabelIntroduction.Caption := 'require("gpio")';
+        LabelIntroduction.Caption := 'require("home-assistant")';
       5:
         LabelIntroduction.Caption := '';
       6:
-        LabelIntroduction.Caption := 'connect.world()';
+        LabelIntroduction.Caption := 'have.fun()';
       7:
         LabelIntroduction.Caption := '';
     else
