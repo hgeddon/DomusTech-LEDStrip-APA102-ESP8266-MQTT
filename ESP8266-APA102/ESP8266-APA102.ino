@@ -521,7 +521,12 @@ void setup_wifi() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(config.ssid, config.password);
-
+  if (config.ssid == '\0')
+  {
+    Serial.println("Turning the HotSpot On");
+    launchWeb();
+    setupAP();// Setup HotSpot
+  }
   if (testWifi())
   {
     Serial.println("");
@@ -1991,12 +1996,13 @@ bool testWifi(void)
 {
   int c = 0;
   Serial.println("Waiting for Wifi to connect");
-  while ( c < 20 ) {
+  while ( c < 60 ) {
+    handle_input();
     if (WiFi.status() == WL_CONNECTED)
     {
       return true;
     }
-    delay(500);
+    delay(1000);
     Serial.print("*");
     c++;
   }
