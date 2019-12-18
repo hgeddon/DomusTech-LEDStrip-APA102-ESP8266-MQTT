@@ -13,29 +13,6 @@ Added a visualizer effect that work by receiving RAW pixel from UDP socket, thos
 
 Added web configurator, when no setted up the ESP8266 create a Wifi AP and host a configuration web page, when the builtin led start to
 flash rapidly you can connect to the network (default name DomusTech-LED) an go to [192.168.4.1](http://192.168.4.1) to set up all variables, you can reset those settings by pushing the flash builtin button of the NodeMCU (GPIO0, D3)
-#####  Copyright
-Main ESP8266 source code : [BRUH Automation](https://github.com/bruhautomation)
-
-Added effects            : [Scott (Fma965)](https://github.com/Fma965)
-
-UDP Visualizer           : [Scott Lawson](https://github.com/scottlawsonbc)
-
-Conbtinious Integration  : [Adafruit](https://github.com/adafruit)
-
-FastLED SPI for ESP8266  : [Benoit Anastay](https://github.com/BenoitAnastay)
-
-FastLED Animation Library : [FastLED](https://github.com/FastLED)
-
-Webserver for wifi setup : [Christopher Strider Cook](https://github.com/chriscook8)
-
-Arduino Client for MQTT  : [Nick O'Leary](https://github.com/knolleary)
-
-Arduino JSON library     : [Benoît Blanchon](https://github.com/bblanchon)
-
-Arduino SDK              : [Arduino](https://github.com/arduino)
-
-ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
-
 #### Supported Features Include
 - RGB Color Selection
 - Brightness 
@@ -47,6 +24,7 @@ ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
 - DrZZs Effects
 - bkpsu Effects
 - Webserver configurator 
+
 Some of the effects incorporate the currrently selected color (sinelon, confetti, juggle, etc) while other effects use pre-defined colors. You can also select custom transition speeds between colors. The transition variable in Home Assistant (HA) also functions to control the animation speed of the currently running animation. The input_slider and automation in the HA configuration example allow you to easily set a transition speed from HA's user interface without needing to use the Services tool. 
 
 The default speed for the effects is hard coded and is set when the light is first turned on. When changing between effects, the previously used transition speed will take over. If the effects don't look great, play around with the slider to adjust the transition speed (AKA the effect's animation speed). 
@@ -126,3 +104,27 @@ pip install numpy scipy pyqtgraph pyaudio
 ```
 
 The you can run `python-visualizer/visualization.py`
+#  Copyright
+Main ESP8266 source code : [BRUH Automation](https://github.com/bruhautomation)
+
+Added effects            : [Scott (Fma965)](https://github.com/Fma965)
+
+UDP Visualizer           : [Scott Lawson](https://github.com/scottlawsonbc)
+
+Conbtinious Integration  : [Adafruit](https://github.com/adafruit)
+
+FastLED SPI for ESP8266  : [Benoit Anastay](https://github.com/BenoitAnastay)
+
+FastLED Animation Library : [FastLED](https://github.com/FastLED)
+
+Webserver for wifi setup : [Christopher Strider Cook](https://github.com/chriscook8)
+
+Arduino Client for MQTT  : [Nick O'Leary](https://github.com/knolleary)
+
+Arduino JSON library     : [Benoît Blanchon](https://github.com/bblanchon)
+
+Arduino SDK              : [Arduino](https://github.com/arduino)
+
+ESP8266 core for Arduino : [ESP8266 Community Forum](https://github.com/esp8266)
+
+NodeMCU Flasher          :[Rui Huang](https://github.com/vowstar)
