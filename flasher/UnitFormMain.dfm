@@ -361,6 +361,7 @@ object FormMain: TFormMain
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
+              Enabled = False
               Visible = False
               OnChange = FrameConfigLineChange
               ExplicitLeft = 445
@@ -384,7 +385,6 @@ object FormMain: TFormMain
           Font.Style = []
           ParentFont = False
           TabOrder = 1
-          Visible = False
           ExplicitLeft = 1
           ExplicitTop = 31
           ExplicitWidth = 546
@@ -413,30 +413,32 @@ object FormMain: TFormMain
               end>
             ExplicitWidth = 546
             inherited CheckBoxEnable: TCheckBox
-              Enabled = False
-              Visible = False
               OnMouseLeave = FrameConfigLineChange
+              ExplicitLeft = -5
+              ExplicitTop = 5
             end
             inherited ComboBoxPath: TComboBox
               Width = 394
-              Enabled = False
-              Visible = False
               OnChange = FrameConfigLineChange
+              ExplicitLeft = 15
+              ExplicitTop = -3
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
               Left = 445
               Enabled = False
-              Visible = False
               OnChange = FrameConfigLineChange
-              ExplicitLeft = 445
+              ExplicitLeft = 451
+              ExplicitTop = 5
             end
             inherited ImageOpenFile: TImage
               Left = 415
-              Enabled = False
-              Visible = False
               ExplicitLeft = 368
             end
+          end
+          inherited TimerCheck: TTimer
+            Left = 183
+            Top = 65535
           end
         end
         inline FrameConfigLine3: TFrameConfigLine
@@ -496,6 +498,8 @@ object FormMain: TFormMain
               Enabled = False
               Visible = False
               OnChange = FrameConfigLineChange
+              ExplicitLeft = 27
+              ExplicitTop = -3
               ExplicitWidth = 394
             end
             inherited ComboBoxOffset: TComboBox
@@ -1052,7 +1056,6 @@ object FormMain: TFormMain
       Font.Style = []
       ImageIndex = 1
       ParentFont = False
-      TabVisible = False
       object MemoOutput: TMemo
         Left = 0
         Top = 0

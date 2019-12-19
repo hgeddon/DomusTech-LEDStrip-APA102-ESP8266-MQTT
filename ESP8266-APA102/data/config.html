@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LED Strip Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <h1>LED Strip Configuration</h1>
+    <p>
+        <form method='post' action='config'>
+            <label>SSID: </label>
+            <input name='ssid' length=32>
+            <br>
+            <label>Wifi password: </label>
+            <input name='pass' length=64>
+            <br>
+            <label>Strip name: </label>
+            <input name='sensorname' length=32>
+            <br>
+			<label>Number of leds: </label>
+            <input type='number' name='numleds' min='1' max='576'>
+            <br>
+            <label>Leds technology: </label>
+            <input list='technology' name='technology'>
+            <datalist id='technology'>
+                <option value='1'>APA102</option>
+                <option value='2'>WS2811</option>
+            </datalist>
+			<br>
+			<label>Optional: </label>
+			<br>
+            <label>OTA password: </label>
+            <input name='otapass' length=64>
+            <br>
+            <label>MQTT Server: </label>
+            <input name='mqttserver' length=32>
+            <br>
+            <label>MQTT user: </label>
+            <input name='mqttuser' length=32>
+            <br>
+            <label>MQTT password: </label>
+            <input name='mqttpass' length=64>
+            <br>
+            <input type='submit'>
+        </form>
+    </p>
+</body>
+<script>
+</script>
+</html>

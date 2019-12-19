@@ -942,7 +942,7 @@ procedure TFormMain.InitDataChest;
 begin
   TStringChest[FrameConfigLine1.Name + '.FilePath'] := 'INTERNAL://DOMUSTECH';
   // 'INTERNAL://FLASH';
-  TStringChest[FrameConfigLine2.Name + '.FilePath'] := '';
+  TStringChest[FrameConfigLine2.Name + '.FilePath'] := 'INTERNAL://SPIFFS';
   // 'INTERNAL://IROM';
   TStringChest[FrameConfigLine3.Name + '.FilePath'] := '';
   // 'INTERNAL://DEFAULT';
@@ -953,7 +953,7 @@ begin
   TStringChest[FrameConfigLine7.Name + '.FilePath'];
   TStringChest[FrameConfigLine1.Name + '.Offset'] := '0x00000';
   // '0x00000';
-  TStringChest[FrameConfigLine2.Name + '.Offset'] := '';
+  TStringChest[FrameConfigLine2.Name + '.Offset'] := '0x200000';
   // '0x10000';
   TStringChest[FrameConfigLine3.Name + '.Offset'] := '';
   // '0x7C000';
@@ -963,7 +963,7 @@ begin
   TStringChest[FrameConfigLine6.Name + '.Offset'];
   TStringChest[FrameConfigLine7.Name + '.Offset'];
   TBooleanChest[FrameConfigLine1.Name + '.Checked'] := True;
-  TBooleanChest[FrameConfigLine2.Name + '.Checked'] := False;
+  TBooleanChest[FrameConfigLine2.Name + '.Checked'] := True;
   // True;
   TBooleanChest[FrameConfigLine3.Name + '.Checked'] := False;
   // True;

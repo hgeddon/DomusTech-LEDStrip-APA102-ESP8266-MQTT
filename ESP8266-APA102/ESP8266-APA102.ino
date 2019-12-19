@@ -30,8 +30,6 @@
 #include "FastLED.h"
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266WebServer.h>
 #include <EEPROM.h>
 
 struct {
@@ -44,7 +42,7 @@ struct {
   char mqtt_password[64] = "";
   char effect[32] = "";
   int  numleds = 0;
-  int technology = 0;
+  uint8_t technology = 0;
 } config;
 int getEEPROM() {
   EEPROM.begin(sizeof (config)); //Initialasing EEPROM
@@ -61,10 +59,6 @@ unsigned int localPort = 7777;
 char packetBuffer[BUFFER_LEN];
 
 //Establishing Local server at port 80 whenever required
-ESP8266WebServer server(80);
-int statusCode;
-String st;
-String content;
 
 /**************************** FOR OTA **************************************************/
 int OTAport = 8266;
@@ -453,6 +447,8 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.begin(115200);
+  Serial.print("EEPROM tech : ");
+  Serial.print(config.technology, HEX);
   int numleds = config.numleds;
   if (config.technology == 1) {
     FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, numleds);
@@ -515,6 +511,7 @@ void setup() {
   Serial.println("Ready");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+  webserver_setup();
   digitalWrite(LED_BUILTIN, LOW);
 }
 
@@ -564,10 +561,9 @@ void setup_wifi() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(config.ssid, config.password);
-  if (config.ssid[0] == '\0')
+  if (config.ssid[0] == '\0' || config.ssid[0] == 255)
   {
     Serial.println("Turning the HotSpot On");
-    launchWeb();
     setupAP();// Setup HotSpot
   }
   else if (testWifi())
@@ -581,7 +577,6 @@ void setup_wifi() {
   else
   {
     Serial.println("Turning the HotSpot On");
-    launchWeb();
     setupAP();// Setup HotSpot
   }
 
@@ -591,7 +586,7 @@ void setup_wifi() {
       led_flash();
       delay(10);
     }
-    server.handleClient();
+    //server_old.handleClient();
     handle_input();
     effects();
   }
@@ -756,7 +751,7 @@ bool processJson(char* message) {
         strcpy(config.effect, root["effect"]);
       else
         strcpy(config.effect, "error");
-      int q = sizeof(config) - sizeof(config.effect) - sizeof(config.technology)- sizeof(config.numleds);
+      int q = sizeof(config) - sizeof(config.effect) - sizeof(config.technology) - sizeof(config.numleds);
       Serial.println("writing eeprom effect:");
       for (int i = 0; i < sizeof(config.effect); ++i)
       {
@@ -2094,9 +2089,8 @@ void launchWeb()
   Serial.println(WiFi.localIP());
   Serial.print("SoftAP IP: ");
   Serial.println(WiFi.softAPIP());
-  createWebServer();
   // Start the server
-  server.begin();
+  webserver_setup();
   Serial.println("Server started");
 }
 
@@ -2127,20 +2121,6 @@ void setupAP(void)
     }
   }
   Serial.println("");
-  st = "<ol>";
-  for (int i = 0; i < n; ++i)
-  {
-    // Print SSID and RSSI for each network found
-    st += "<li>";
-    st += WiFi.SSID(i);
-    st += " (";
-    st += WiFi.RSSI(i);
-
-    st += ")";
-    st += (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*";
-    st += "</li>";
-  }
-  st += "</ol>";
   delay(100);
   WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), "");
   Serial.println("softap");
@@ -2150,145 +2130,145 @@ void setupAP(void)
   Serial.println("over");
 }
 
-void createWebServer()
-{
-  {
-    server.on("/", []() {
-
-      IPAddress ip = WiFi.softAPIP();
-      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-      content = "<!DOCTYPE HTML>\r\n<html>Hello from ESP8266 at ";
-      content += ipStr;
-      content += "<form action=\"/scan\" method=\"POST\"><input type=\"submit\" value=\"scan\"></form>";
-      content += "<p>";
-      content += st;
-      content += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid' length=32><br><label>Wifi password: </label><input name='pass' length=64><br><label>Strip name: </label><input name='sensorname' length=32><br><label>OTA password: </label><input name='otapass' length=64><br><label>MQTT Server: </label><input name='mqttserver' length=32><br><label>MQTT user: </label><input name='mqttuser' length=32><br><label>MQTT password: </label><input name='mqttpass' length=64><br><label>Number of leds: </label><input type='number' name='numleds' min='1' max='576'><br><label>Leds technology: </label><input list='technology' name='technology'><datalist id='technology'><option value='1'>APA102</option><option value='2'>WS2811</option></datalist><input type='submit'></form>";
-      content += "</html>";
-      server.send(200, "text/html", content);
-    });
-    server.on("/scan", []() {
-      //setupAP();
-      IPAddress ip = WiFi.softAPIP();
-      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-
-      content = "<!DOCTYPE HTML>\r\n<html>go back";
-      server.send(200, "text/html", content);
-    });
-
-    server.on("/setting", []() {
-      String qsid = server.arg("ssid");
-      String qpass = server.arg("pass");
-      String sensorname = server.arg("sensorname");
-      String otapass = server.arg("otapass");
-      String mqttserver = server.arg("mqttserver");
-      String mqttuser = server.arg("mqttuser");
-      String mqttpass = server.arg("mqttpass");
-      String numleds = server.arg("numleds");
-      String technology = server.arg("technology");
-      if (qsid.length() > 0 && qpass.length() > 0 && sensorname.length() > 0 && otapass.length() > 0 && mqttserver.length() > 0 && mqttuser.length() > 0 && mqttpass.length() > 0 && numleds.length() > 0 && technology.length() > 0) {
-        Serial.println("clearing eeprom");
-        for (int i = 0; i < sizeof(config); ++i) {
-          EEPROM.write(i, 0);
-        }
-        Serial.println(qsid);
-        Serial.println("");
-        Serial.println(qpass);
-        Serial.println("");
-        int q = 0;
-        Serial.println("writing eeprom ssid:");
-        for (int i = 0; i < qsid.length(); ++i)
-        {
-          EEPROM.write(q + i, qsid[i]);
-          Serial.print("Wrote: ");
-          Serial.println(qsid[i]);
-        }
-        q += sizeof(config.ssid);
-        Serial.println("writing eeprom pass:");
-        for (int i = 0; i < qpass.length(); ++i)
-        {
-          EEPROM.write(q + i, qpass[i]);
-          Serial.print("Wrote: ");
-          Serial.println(qpass[i]);
-        }
-        q += sizeof(config.password);
-        Serial.println("writing eeprom sensorname:");
-        for (int i = 0; i < sensorname.length(); ++i)
-        {
-          EEPROM.write(q + i, sensorname[i]);
-          Serial.print("Wrote: ");
-          Serial.println(sensorname[i]);
-        }
-        q += sizeof(config.name);
-        Serial.println("writing eeprom otapass:");
-        for (int i = 0; i < otapass.length(); ++i)
-        {
-          EEPROM.write(q + i, otapass[i]);
-          Serial.print("Wrote: ");
-          Serial.println(otapass[i]);
-        }
-        q += sizeof(config.OTApassword);
-        Serial.println("writing eeprom mqttserver:");
-        for (int i = 0; i < mqttserver.length(); ++i)
-        {
-          EEPROM.write(q + i, mqttserver[i]);
-          Serial.print("Wrote: ");
-          Serial.println(mqttserver[i]);
-        }
-        q += sizeof(config.mqtt_server);
-        Serial.println("writing eeprom mqttuser:");
-        for (int i = 0; i < mqttuser.length(); ++i)
-        {
-          EEPROM.write(q + i, mqttuser[i]);
-          Serial.print("Wrote: ");
-          Serial.println(mqttuser[i]);
-        }
-        q += sizeof(config.mqtt_username);
-        Serial.println("writing eeprom mqttpass:");
-        for (int i = 0; i < mqttpass.length(); ++i)
-        {
-          EEPROM.write(q + i, mqttpass[i]);
-          Serial.print("Wrote: ");
-          Serial.println(mqttpass[i]);
-        }
-        q += sizeof(config.mqtt_password);
-        q += sizeof(config.effect);
-        Serial.println("writing eeprom numleds:");
-        int a = numleds.toInt() & 0xFF;
-        int b = numleds.toInt() >> 8;
-        EEPROM.write(q, a);
-        EEPROM.write(q + 1, b);
-        Serial.print("Wrote: ");
-        Serial.println(numleds);
-        q += sizeof(config.numleds);
-        Serial.println("writing eeprom technology:");
-
-        EEPROM.write(q, technology.toInt());
-        Serial.print("Wrote: ");
-        Serial.println(technology);
-
-        q += sizeof(config.technology);
-        Serial.println(q);
-        noInterrupts();
-        EEPROM.commit();
-        interrupts();
-
-        content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
-        statusCode = 200;
-        server.sendHeader("Access-Control-Allow-Origin", "*");
-        server.send(statusCode, "application/json", content);
-        delay(1000); //Avoid reset before sending state
-        ESP.reset();
-      } else {
-        content = "{\"Error\":\"404 not found\"}";
-        statusCode = 404;
-        Serial.println("Sending 404");
-        server.sendHeader("Access-Control-Allow-Origin", "*");
-        server.send(statusCode, "application/json", content);
-      }
-
-    });
-  }
-}
+//void createWebServer()
+//{
+//  {
+//    server_old.on("/", []() {
+//
+//      IPAddress ip = WiFi.softAPIP();
+//      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+//      content = "<!DOCTYPE HTML>\r\n<html>Hello from ESP8266 at ";
+//      content += ipStr;
+//      content += "<form action=\"/scan\" method=\"POST\"><input type=\"submit\" value=\"scan\"></form>";
+//      content += "<p>";
+//      content += st;
+//      content += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid' length=32><br><label>Wifi password: </label><input name='pass' length=64><br><label>Strip name: </label><input name='sensorname' length=32><br><label>OTA password: </label><input name='otapass' length=64><br><label>MQTT Server: </label><input name='mqttserver' length=32><br><label>MQTT user: </label><input name='mqttuser' length=32><br><label>MQTT password: </label><input name='mqttpass' length=64><br><label>Number of leds: </label><input type='number' name='numleds' min='1' max='576'><br><label>Leds technology: </label><input list='technology' name='technology'><datalist id='technology'><option value='1'>APA102</option><option value='2'>WS2811</option></datalist><input type='submit'></form>";
+//      content += "</html>";
+//      server_old.send(200, "text/html", content);
+//    });
+//    server_old.on("/scan", []() {
+//      //setupAP();
+//      IPAddress ip = WiFi.softAPIP();
+//      String ipStr = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+//
+//      content = "<!DOCTYPE HTML>\r\n<html>go back";
+//      server_old.send(200, "text/html", content);
+//    });
+//
+//    server_old.on("/setting", []() {
+//      String qsid = server_old.arg("ssid");
+//      String qpass = server_old.arg("pass");
+//      String sensorname = server_old.arg("sensorname");
+//      String otapass = server_old.arg("otapass");
+//      String mqttserver = server_old.arg("mqttserver");
+//      String mqttuser = server_old.arg("mqttuser");
+//      String mqttpass = server_old.arg("mqttpass");
+//      String numleds = server_old.arg("numleds");
+//      String technology = server_old.arg("technology");
+//      if (qsid.length() > 0 && qpass.length() > 0 && sensorname.length() > 0 && otapass.length() > 0 && mqttserver.length() > 0 && mqttuser.length() > 0 && mqttpass.length() > 0 && numleds.length() > 0 && technology.length() > 0) {
+//        Serial.println("clearing eeprom");
+//        for (int i = 0; i < sizeof(config); ++i) {
+//          EEPROM.write(i, 0);
+//        }
+//        Serial.println(qsid);
+//        Serial.println("");
+//        Serial.println(qpass);
+//        Serial.println("");
+//        int q = 0;
+//        Serial.println("writing eeprom ssid:");
+//        for (int i = 0; i < qsid.length(); ++i)
+//        {
+//          EEPROM.write(q + i, qsid[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(qsid[i]);
+//        }
+//        q += sizeof(config.ssid);
+//        Serial.println("writing eeprom pass:");
+//        for (int i = 0; i < qpass.length(); ++i)
+//        {
+//          EEPROM.write(q + i, qpass[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(qpass[i]);
+//        }
+//        q += sizeof(config.password);
+//        Serial.println("writing eeprom sensorname:");
+//        for (int i = 0; i < sensorname.length(); ++i)
+//        {
+//          EEPROM.write(q + i, sensorname[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(sensorname[i]);
+//        }
+//        q += sizeof(config.name);
+//        Serial.println("writing eeprom otapass:");
+//        for (int i = 0; i < otapass.length(); ++i)
+//        {
+//          EEPROM.write(q + i, otapass[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(otapass[i]);
+//        }
+//        q += sizeof(config.OTApassword);
+//        Serial.println("writing eeprom mqttserver:");
+//        for (int i = 0; i < mqttserver.length(); ++i)
+//        {
+//          EEPROM.write(q + i, mqttserver[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(mqttserver[i]);
+//        }
+//        q += sizeof(config.mqtt_server);
+//        Serial.println("writing eeprom mqttuser:");
+//        for (int i = 0; i < mqttuser.length(); ++i)
+//        {
+//          EEPROM.write(q + i, mqttuser[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(mqttuser[i]);
+//        }
+//        q += sizeof(config.mqtt_username);
+//        Serial.println("writing eeprom mqttpass:");
+//        for (int i = 0; i < mqttpass.length(); ++i)
+//        {
+//          EEPROM.write(q + i, mqttpass[i]);
+//          Serial.print("Wrote: ");
+//          Serial.println(mqttpass[i]);
+//        }
+//        q += sizeof(config.mqtt_password);
+//        q += sizeof(config.effect);
+//        Serial.println("writing eeprom numleds:");
+//        int a = numleds.toInt() & 0xFF;
+//        int b = numleds.toInt() >> 8;
+//        EEPROM.write(q, a);
+//        EEPROM.write(q + 1, b);
+//        Serial.print("Wrote: ");
+//        Serial.println(numleds);
+//        q += sizeof(config.numleds);
+//        Serial.println("writing eeprom technology:");
+//
+//        EEPROM.write(q, technology.toInt() & 0xFF);
+//        Serial.print("Wrote: ");
+//        Serial.println(technology);
+//
+//        q += sizeof(config.technology);
+//        Serial.println(q);
+//        noInterrupts();
+//        EEPROM.commit();
+//        interrupts();
+//
+//        content = "{\"Success\":\"saved to eeprom... reset to boot into new wifi\"}";
+//        statusCode = 200;
+//        server_old.sendHeader("Access-Control-Allow-Origin", "*");
+//        server_old.send(statusCode, "application/json", content);
+//        delay(1000); //Avoid reset before sending state
+//        ESP.reset();
+//      } else {
+//        content = "{\"Error\":\"404 not found\"}";
+//        statusCode = 404;
+//        Serial.println("Sending 404");
+//        server_old.sendHeader("Access-Control-Allow-Origin", "*");
+//        server_old.send(statusCode, "application/json", content);
+//      }
+//
+//    });
+//  }
+//}
 
 void reset_config() {
   for (int i = 0; i < sizeof(config); ++i) {

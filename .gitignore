@@ -1,5 +1,6 @@
-*.dcu
-/__history
-/ESP8266Flasher.dproj.local
-/ESP8266Flasher.identcache
-
+/flasher/*.dcu
+/flasher/__history
+/flasher/ESP8266Flasher.dproj.local
+/flasher/ESP8266Flasher.identcache
+/flasher/Win32/Release/Config
+build/
