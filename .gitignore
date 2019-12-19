@@ -1,6 +1,2 @@
-/flasher/*.dcu
-/flasher/__history
-/flasher/ESP8266Flasher.dproj.local
-/flasher/ESP8266Flasher.identcache
-/flasher/Win32/Release/Config
 build/
+arduino_build_/
