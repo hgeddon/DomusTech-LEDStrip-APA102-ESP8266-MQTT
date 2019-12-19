@@ -1,5 +1,0 @@
-DOMUSTECH   BIN        Resources\Binaries\ESP8266_APA102.ino.bin
-SPIFFS      BIN        Resources\Binaries\ESP8266_APA102.spiffs.bin
-YES         RCDATA     Resources\Images\Yes.png
-NO          RCDATA     Resources\Images\No.png
-WAIT        BIN        Resources\Images\Wait.gif
