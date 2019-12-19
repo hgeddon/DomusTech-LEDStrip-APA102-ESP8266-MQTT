@@ -42,7 +42,7 @@ struct {
   char mqtt_password[64] = "";
   char effect[32] = "";
   int  numleds = 0;
-  uint8_t technology = 0;
+  int  technology = 0;
 } config;
 int getEEPROM() {
   EEPROM.begin(sizeof (config)); //Initialasing EEPROM
@@ -443,26 +443,30 @@ boolean buttonActive = false;
 boolean longPressActive = false;
 /********************************** START SETUP*****************************************/
 void setup() {
+  if (config.name[0] == 255)
+  {
+    reset_config();
+  }
   pinMode(0, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   Serial.begin(115200);
-  Serial.print("EEPROM tech : ");
-  Serial.print(config.technology, HEX);
-  int numleds = config.numleds;
-  if (config.technology == 1) {
-    FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, numleds);
-    Serial.print("Setting APA102 ");
-    technology = "APA102";
+  Serial.print("Numleds :");
+  Serial.print(config.numleds);
+  if (config.numleds != 0) {
+    int numleds = config.numleds;
+    if (config.technology == 1) {
+      FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, COLOR_ORDER, DATA_RATE_MHZ(12)>(leds, numleds);
+      Serial.print("Setting APA102 ");
+      technology = "APA102";
+    }
+    else {
+      FastLED.addLeds<WS2811, 7, COLOR_ORDER>(leds, numleds);
+      Serial.print("Setting WS2811 ");
+      technology = "WS2811";
+    }
+    Serial.print(technology);
   }
-  else {
-    FastLED.addLeds<WS2811, 7, COLOR_ORDER>(leds, numleds);
-    Serial.print("Setting WS2811 ");
-    technology = "WS2811";
-  }
-  Serial.print(technology);
-  Serial.println(config.numleds);
-
 
   setupStripedPalette( CRGB::Red, CRGB::Red, CRGB::White, CRGB::White); //for CANDY CANE
   setupThxPalette( CRGB::OrangeRed, CRGB::Olive, CRGB::Maroon, CRGB::Maroon); //for Thanksgiving
