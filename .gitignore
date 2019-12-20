@@ -1,5 +1,2 @@
-*.dcu
-/__history
-/ESP8266Flasher.dproj.local
-/ESP8266Flasher.identcache
-
+build/
+arduino_build_/

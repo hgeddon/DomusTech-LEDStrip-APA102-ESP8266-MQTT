@@ -16,13 +16,15 @@ before_install:
 - source $TRAVIS_BUILD_DIR/.install.sh
 script:
 - "$TRAVIS_BUILD_DIR/.install.sh build_platform esp8266"
+before_deploy:
+- ~/.arduino15/packages/esp8266/tools/mkspiffs/2.5.0-4-b40a506/mkspiffs -p 256 -b 8192 -s $((0x3FA000 - 0x300000)) -c $TRAVIS_BUILD_DIR/ESP8266-APA102/data/ $ARDUINO_HEX_DIR/esp8266/ESP8266-APA102/ESP8266-APA102.spiffs.bin
 deploy:
   provider: releases
   api_key:
     secure: WSEMg9byrwFHsuRronMWBZpTRMFWPuFltH1YKHozms1BiXiVc7+QEcJLgNHWb/LkAfvbDGA8sTofEqFxa5tCDg0mD1dfsVu2BgcfeOPIQsFN3TOC82SX2kU/ngXLU0fhEj0J/yL2tg3wYJLygrYV5btvIK4P9KRkyxbNBf/YZLIIJY293AlAVJu7OzBA72WAFA4TNQzQqLvL5VKRv8msdjVk2HSiSrUjljFoIO4kIQZnAFIVVrvrUHIL4r6mXGTDn5vBxYFHCNvj59unyTYX2nAeVUB4t35+DnCyNKn+06PLi7/mr5ZKggStb3EIkLsHhUFtb4KeCt2ot2EC49oQ75nNchQ9ZHZjRkGZQEswZMxTqcTrymCr2sMHz2qNkY8NRXqmVq7jtEAwhYeC+UQU1jJ8w0JNqish+lMtMpjaXAp/rE+RHWzI3yi9X+uBucAVfmfF3VSQh6/KsRrxqplUKLDZCeVpMYAW9Bhzro/67SR4LX8MAwsoV3lN4rgqKUusMDg2hZqzH8oYZWhuTpnng+O91KKya9oPKT8kxopaHZJBtrCwxmRoIVisW0HrkEmm0HZ/yqpjDHvLJjvc99mhfOmlIb88Lqbyq1uKARU8+tV9eXCuAdN5EfzhTuynxm2GBffvkr30lk3n0Six08mqLSLPdmsmSDnXzYp7kEzO40Y=
   file:
     -  "$ARDUINO_HEX_DIR/esp8266/ESP8266-APA102/ESP8266-APA102.ino.bin"
-    -  "Home\ Assistant/config/packages/rgb_strip.yaml"
+    -  "$ARDUINO_HEX_DIR/esp8266/ESP8266-APA102/ESP8266-APA102.spiffs.bin"
   skip_cleanup: true
   on:
     tags: true

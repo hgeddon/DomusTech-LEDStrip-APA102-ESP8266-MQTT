@@ -9,7 +9,7 @@ fi
 # associative array for the platforms that will be verified in build_main_platforms()
 # this will be eval'd in the functions below because arrays can't be exported
 # Uno is ATmega328, Zero is SAMD21G18, ESP8266, Leonardo is ATmega32u4, M4 is SAMD51, Mega is ATmega2560, ESP32
-export MAIN_PLATFORMS='declare -A main_platforms=( [uno]="arduino:avr:uno" [zero]="arduino:samd:arduino_zero_native" [esp8266]="esp8266:esp8266:huzzah:eesz=4M3M,xtal=80" [leonardo]="arduino:avr:leonardo" [m4]="adafruit:samd:adafruit_metro_m4:speed=120" [mega2560]="arduino:avr:mega:cpu=atmega2560" [esp32]="esp32:esp32:featheresp32:FlashFreq=80" )'
+export MAIN_PLATFORMS='declare -A main_platforms=( [uno]="arduino:avr:uno" [zero]="arduino:samd:arduino_zero_native" [esp8266]="esp8266:esp8266:nodemcuv2:eesz=4M1M,xtal=160,wipe=none" [leonardo]="arduino:avr:leonardo" [m4]="adafruit:samd:adafruit_metro_m4:speed=120" [mega2560]="arduino:avr:mega:cpu=atmega2560" [esp32]="esp32:esp32:featheresp32:FlashFreq=80" )'
 
 # associative array for other platforms that can be called explicitly in .travis.yml configs
 # this will be eval'd in the functions below because arrays can't be exported
@@ -23,7 +23,7 @@ export M4_PLATFORMS='declare -A m4_platforms=( [m4]="adafruit:samd:adafruit_metr
 
 export ARCADA_PLATFORMS='declare -A arcada_platforms=( [pybadge]="adafruit:samd:adafruit_pybadge_m4:speed=120", [pygamer]="adafruit:samd:adafruit_pygamer_m4:speed=120", [hallowing_m4]="adafruit:samd:adafruit_hallowing_m4:speed=120", [cplayExpressAda]="adafruit:samd:adafruit_circuitplayground_m0" )'
 
-export IO_PLATFORMS='declare -A io_platforms=( [zero]="arduino:samd:arduino_zero_native", [m4wifi]="adafruit:samd:adafruit_metro_m4_airliftlite:speed=120", [esp8266]="esp8266:esp8266:huzzah:eesz=4M3M,xtal=80" [esp32]="esp32:esp32:featheresp32:FlashFreq=80" )'
+export IO_PLATFORMS='declare -A io_platforms=( [zero]="arduino:samd:arduino_zero_native", [m4wifi]="adafruit:samd:adafruit_metro_m4_airliftlite:speed=120", [esp8266]="esp8266:esp8266:nodemcuv2:eesz=4M1M,xtal=160,wipe=none" [esp32]="esp32:esp32:featheresp32:FlashFreq=80" )'
 
 export NRF5X_PLATFORMS='declare -A nrf5x_platforms=( [nrf52840]="adafruit:nrf52:feather52840:softdevice=s140v6,debug=l0")'
 
@@ -160,6 +160,10 @@ DEPENDENCY_OUTPUT=$(arduino --install-library PubSubClient > /dev/null 2>&1)
 if [ $? -ne 0 ]; then echo -e """$RED""\xe2\x9c\x96"; else echo -e """$GREEN""\xe2\x9c\x93"; fi
 
 git clone https://github.com/BenoitAnastay/FastLED.git ~/Arduino/libraries/FastLED
+
+git clone https://github.com/me-no-dev/ESPAsyncTCP.git ~/Arduino/libraries/ESPAsyncTCP
+
+git clone https://github.com/me-no-dev/ESPAsyncWebServer.git ~/Arduino/libraries/ESPAsyncWebServer
 
 # set the maximal compiler warning level
 echo -n "SET BUILD PREFERENCES: "
