@@ -110,7 +110,7 @@ void webserver_setup() {
       }
       q += sizeof(config.ssid);
       Serial.println("writing eeprom pass:");
-      if (pass.length > 0) {
+      if (pass.length() > 0) {
         for (int i = 0; i < pass.length(); ++i)
         {
           EEPROM.write(q + i, pass[i]);
