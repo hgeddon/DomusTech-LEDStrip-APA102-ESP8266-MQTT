@@ -5,6 +5,8 @@
 AsyncWebServer server(80);
 
 String State;
+String Name;
+String Effect_list;
 
 String processor(const String& var) {
   Serial.println(var);
@@ -18,6 +20,25 @@ String processor(const String& var) {
     Serial.print(State);
     return State;
   }
+  if (var == "NAME") {
+    Name = config.name;
+    Serial.print(Name);
+    return Name;
+  }
+  if (var == "EFFECT_LIST") {
+    Effect_list = "";
+    for (int i = 0; i < effectListc; ++i) {
+      Effect_list += "<option value='";
+      Effect_list += effectList[i];
+      Effect_list += "'";
+      if (effectString == effectList[i])
+        Effect_list += " selected";
+      Effect_list += ">";
+      Effect_list += effectList[i];
+      Effect_list += "</option>\r\n";
+    }
+    return Effect_list;
+  }
 }
 
 void webserver_setup() {
@@ -30,6 +51,8 @@ void webserver_setup() {
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (config.numleds == 0)
+      request->send(SPIFFS, "/config.html", String(), false, processor);
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
@@ -87,11 +110,13 @@ void webserver_setup() {
       }
       q += sizeof(config.ssid);
       Serial.println("writing eeprom pass:");
-      for (int i = 0; i < pass.length(); ++i)
-      {
-        EEPROM.write(q + i, pass[i]);
-        Serial.print("Wrote: ");
-        Serial.println(pass[i]);
+      if (pass.length > 0) {
+        for (int i = 0; i < pass.length(); ++i)
+        {
+          EEPROM.write(q + i, pass[i]);
+          Serial.print("Wrote: ");
+          Serial.println(pass[i]);
+        }
       }
       q += sizeof(config.password);
       Serial.println("writing eeprom sensorname:");
@@ -164,17 +189,25 @@ void webserver_setup() {
     request->send(SPIFFS, "/style.css", "text/css");
   });
 
-  // Route to set GPIO to HIGH
+  // Route to set STATE to ON
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest * request) {
     stateOn = true;
     sendState();
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
-  // Route to set GPIO to LOW
+  // Route to set STATE to OFF
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest * request) {
     stateOn = false;
     setColor(0, 0, 0);
+    sendState();
+    request->send(SPIFFS, "/index.html", String(), false, processor);
+  });
+
+  // Route to set EFFECT
+  server.on("/effect", HTTP_GET, [](AsyncWebServerRequest * request) {
+    effectString = request->getParam("effect")->value();
+    stateOn = true;
     sendState();
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
