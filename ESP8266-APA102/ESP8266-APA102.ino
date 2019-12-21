@@ -881,7 +881,10 @@ void loop() {
     for (int i = 0; i < len; i += 5) {
       packetBuffer[len] = 0;
       int N = ((packetBuffer[i] << 8) + packetBuffer[i + 1]);
-      leds[N] = CRGB((uint8_t)packetBuffer[i + 2], (uint8_t)packetBuffer[i + 3], (uint8_t)packetBuffer[i + 4]);
+      byte R = map((uint8_t)packetBuffer[i + 2], 0, 255, 0, brightness);
+      byte G = map((uint8_t)packetBuffer[i + 3], 0, 255, 0, brightness);
+      byte B = map((uint8_t)packetBuffer[i + 4], 0, 255, 0, brightness);
+      leds[N] = CRGB(R, G, B);
     }
     FastLED.show();
   } else {
