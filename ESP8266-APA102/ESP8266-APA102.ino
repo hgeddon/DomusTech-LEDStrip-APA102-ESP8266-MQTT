@@ -2177,4 +2177,5 @@ void register_homeassistant() {
   char* endpoint_config    = new char[sizeof("homeassistant/light/") + strlen(config.name) + strlen("/config")];
   sprintf(endpoint_config, "homeassistant/light/%s/config", config.name);
   client.publish(endpoint_config, buffer, true);
+  sendState();
 }

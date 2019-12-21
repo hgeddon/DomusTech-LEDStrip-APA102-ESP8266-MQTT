@@ -44,7 +44,19 @@ String processor(const String& var) {
     realRed = map(red, 0, 255, 0, brightness);
     realGreen = map(green, 0, 255, 0, brightness);
     realBlue = map(blue, 0, 255, 0, brightness);
-    Hexcolor = String(realRed, HEX)+String(realGreen, HEX)+String(realBlue, HEX);
+    Hexcolor = "";
+    if (String(realRed, HEX).length() == 1)
+      Hexcolor += "0" + String(realRed, HEX);
+    else
+      Hexcolor += String(realRed, HEX);
+    if (String(realGreen, HEX).length() == 1)
+      Hexcolor += "0" + String(realGreen, HEX);
+    else
+      Hexcolor += String(realGreen, HEX);
+    if (String(realBlue, HEX).length() == 1)
+      Hexcolor += "0" + String(realBlue, HEX);
+    else
+      Hexcolor += String(realBlue, HEX);
     return Hexcolor;
   }
 }
@@ -60,7 +72,7 @@ void webserver_setup() {
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     if (config.numleds == 0)
-      request->send(SPIFFS, "/config.html", String(), false, processor);
+      request->redirect("/config");
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
@@ -237,7 +249,7 @@ void webserver_setup() {
     startFade = true;
     inFade = false;
     sendState();
-    request->send(SPIFFS, "/index.html", String(), false, processor);
+    request->redirect("/");
   });
 
   // Route to set RGB
@@ -260,7 +272,7 @@ void webserver_setup() {
     inFade = false;
     stateOn = true;
     sendState();
-    request->send(SPIFFS, "/index.html", String(), false, processor);
+    request->redirect("/");
   });
 
   // Start server
