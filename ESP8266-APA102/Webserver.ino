@@ -27,16 +27,17 @@ String processor(const String& var) {
     return Name;
   }
   if (var == "EFFECT_LIST") {
-    Effect_list = "";
-    for (int i = 0; i < effectListc; ++i) {
-      Effect_list += "<option value='";
-      Effect_list += effectList[i];
-      Effect_list += "'";
-      if (effectString == effectList[i])
-        Effect_list += " selected";
-      Effect_list += ">";
-      Effect_list += effectList[i];
-      Effect_list += "</option>\r\n";
+    if (Effect_list = "") {
+      for (int i = 0; i < effectListc; ++i) {
+        Effect_list += "<option value='";
+        Effect_list += effectList[i];
+        Effect_list += "'";
+        if (effectString == effectList[i])
+          Effect_list += " selected";
+        Effect_list += ">";
+        Effect_list += effectList[i];
+        Effect_list += "</option>\r\n";
+      }
     }
     return Effect_list;
   }
