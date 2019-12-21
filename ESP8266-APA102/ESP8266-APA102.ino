@@ -66,7 +66,7 @@ int OTAport = 8266;
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
 const char* effect = "solid";
-const char* effectList[] = {"Visualizer", "Christmas", "Music - L2R", "Music - Middle", "Music - Fma965", "bpm", "candy cane", "confetti", "cyclon rainbow", "dots", "fire", "glitter", "juggle", "lightning", "noise", "police all", "police one", "rainbow", "rainbow with glitter", "ripple", "twinkle", "sinelon", "sine hue", "full hue", "breathe", "hue breathe", "Christmas bounce", "christmas alternate", "random stars", "St Patty", "Valentine", "Turkey Day", "Thanksgiving", "USA", "Independence", "Halloween", "Go Lions", "Hail", "Touchdown", "Punkin", "Lovey Day", "Holly Jolly"};
+const char* effectList[] = {"Visualizer", "Christmas", "solid", "Music - L2R", "Music - Middle", "Music - Fma965", "bpm", "candy cane", "confetti", "cyclon rainbow", "dots", "fire", "glitter", "juggle", "lightning", "noise", "police all", "police one", "rainbow", "rainbow with glitter", "ripple", "twinkle", "sinelon", "sine hue", "full hue", "breathe", "hue breathe", "Christmas bounce", "christmas alternate", "random stars", "St Patty", "Valentine", "Turkey Day", "Thanksgiving", "USA", "Independence", "Halloween", "Go Lions", "Hail", "Touchdown", "Punkin", "Lovey Day", "Holly Jolly"};
 const int effectListc = sizeof(effectList) / sizeof(effectList[0]);
 int effect_id = 1; //Skip visualiser
 String effectString = "solid";
@@ -2158,7 +2158,8 @@ void register_homeassistant() {
     effect_list.add(effectList[i]);
   }
   root["name"] = config.name;
-  root["platform"] = "mqtt_json";
+  root["platform"] = "mqtt";
+  root["schema"] = "json";
   root["state_topic"] = endpoint_state;
   root["command_topic"] = endpoint;
   root["brightness"] = true;

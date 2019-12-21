@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <script src="bootstrap.min.js"></script>
+    <script src="jscolor.min.js"></script>
 </head>
 
 <body>
@@ -19,11 +22,6 @@
             <button class="button button2">OFF</button>
         </a>
     </p>
-    <p>
-        <a href="/config">
-            <button class="button button2">Configuration</button>
-        </a>
-    </p>
     <p>Effect</p>
     <form method='get' action='effect'>
 	<select name="effect">
@@ -31,8 +29,20 @@
 	</select>
         <input type='submit'>
     </form>
+    <p>Color</p>
+    <input class="jscolor {onFineChange:'update(this)'}" id="rgb" value="%HEXCOLOR%">
+    <a type="submit" id="change_color" type="button" class="btn btn-primary">Update Color</a>
+    <p>
+        <a href="/config">
+            <button class="button button2">Configuration</button>
+        </a>
+    </p>
 </body>
 <script>
+    function update(picker) {
+        document.getElementById('rgb').innerHTML = Math.round(picker.rgb[0]) + ', ' + Math.round(picker.rgb[1]) + ', ' + Math.round(picker.rgb[2]);
+        document.getElementById("change_color").href="/rgb?r=" + Math.round(picker.rgb[0]) + "&g=" +  Math.round(picker.rgb[1]) + "&b=" + Math.round(picker.rgb[2]);
+    }
 </script>
 
 </html>

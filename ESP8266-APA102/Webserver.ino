@@ -7,6 +7,7 @@ AsyncWebServer server(80);
 String State;
 String Name;
 String Effect_list;
+String Hexcolor;
 
 String processor(const String& var) {
   Serial.println(var);
@@ -38,6 +39,13 @@ String processor(const String& var) {
       Effect_list += "</option>\r\n";
     }
     return Effect_list;
+  }
+  if (var == "HEXCOLOR") {
+    realRed = map(red, 0, 255, 0, brightness);
+    realGreen = map(green, 0, 255, 0, brightness);
+    realBlue = map(blue, 0, 255, 0, brightness);
+    Hexcolor = String(realRed, HEX)+String(realGreen, HEX)+String(realBlue, HEX);
+    return Hexcolor;
   }
 }
 
@@ -189,6 +197,21 @@ void webserver_setup() {
     request->send(SPIFFS, "/style.css", "text/css");
   });
 
+  // Route to load bootstrap.min.css file
+  server.on("/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(SPIFFS, "/bootstrap.min.css", "text/css");
+  });
+
+  // Route to load bootstrap.min.js file
+  server.on("/bootstrap.min.js", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(SPIFFS, "/bootstrap.min.js", "text/css");
+  });
+
+  // Route to load jscolor.min.js file
+  server.on("/jscolor.min.js", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(SPIFFS, "/jscolor.min.js", "text/css");
+  });
+
   // Route to set STATE to ON
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest * request) {
     stateOn = true;
@@ -207,6 +230,34 @@ void webserver_setup() {
   // Route to set EFFECT
   server.on("/effect", HTTP_GET, [](AsyncWebServerRequest * request) {
     effectString = request->getParam("effect")->value();
+    stateOn = true;
+    realRed = map(red, 0, 255, 0, brightness);
+    realGreen = map(green, 0, 255, 0, brightness);
+    realBlue = map(blue, 0, 255, 0, brightness);
+    startFade = true;
+    inFade = false;
+    sendState();
+    request->send(SPIFFS, "/index.html", String(), false, processor);
+  });
+
+  // Route to set RGB
+  server.on("/rgb", HTTP_GET, [](AsyncWebServerRequest * request) {
+    String r = request->getParam("r")->value();
+    String g = request->getParam("g")->value();
+    String b = request->getParam("b")->value();
+    brightness = r.toInt();
+    if (g.toInt() > brightness)
+      brightness = g.toInt();
+    else if (b.toInt() > brightness)
+      brightness = b.toInt();
+    realRed = r.toInt();
+    realGreen = g.toInt();
+    realBlue = b.toInt();
+    red = map(realRed, 0, brightness, 0, 255);
+    green = map(realGreen, 0, brightness, 0, 255);
+    blue = map(realBlue, 0, brightness, 0, 255);
+    startFade = true;
+    inFade = false;
     stateOn = true;
     sendState();
     request->send(SPIFFS, "/index.html", String(), false, processor);
