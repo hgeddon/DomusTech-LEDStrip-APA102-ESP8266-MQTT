@@ -76,12 +76,17 @@ One last thing, the white value is controlling the speed of the effects
 ###### OTA Uploading
 When asked by the webconfigurator you can set a ota login to be able tu use it with Arduino IDE
 
-###### Leds meaning
+##### Leds meaning
 - Static : Initialising
 
 - Blinking slowly : Connecting to Wifi
 
 - Blinking fast : Pairing mode, had created a ad hoc wifi
+
+##### Buttons usage
+- [FLASH]Short press : cycle effects and Home Assistant publication 
+- [FLASH]Long press (6sec) : Flush saved configuration
+- RESET : Reboot the device
 ##### Manual
 Copy past the [`Home Assistant/config/packages`](https://github.com/BenoitAnastay/DomusTech-LEDStrip-APA102-ESP8266-MQTT/tree/master/Home%20Assistant/config/packages) directory into Home Assistant `config` directory
 
