@@ -71,7 +71,7 @@ int OTAport = 8266;
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
 const char* effect = "solid";
-const char* effectList[] = {"Visualizer", "Christmas", "solid", "Music - L2R", "Music - Middle", "Music - Fma965", "bpm", "candy cane", "confetti", "cyclon rainbow", "dots", "fire", "glitter", "juggle", "lightning", "noise", "police all", "police one", "rainbow", "rainbow with glitter", "ripple", "twinkle", "sinelon", "sine hue", "full hue", "breathe", "hue breathe", "Christmas bounce", "christmas alternate", "random stars", "St Patty", "Valentine", "Turkey Day", "Thanksgiving", "USA", "Independence", "Halloween", "Go Lions", "Hail", "Touchdown", "Punkin", "Lovey Day", "Holly Jolly"};
+const char* effectList[] = {"Visualizer", "Christmas", "solid", "Music - L2R", "Music - Middle", "Music - LR2M", "bpm", "candy cane", "confetti", "cyclon rainbow", "dots", "fire", "glitter", "juggle", "lightning", "noise", "police all", "police one", "rainbow", "rainbow with glitter", "ripple", "twinkle", "sinelon", "sine hue", "full hue", "breathe", "hue breathe", "Christmas bounce", "christmas alternate", "random stars", "St Patty", "Valentine", "Turkey Day", "Thanksgiving", "USA", "Independence", "Halloween", "Go Lions", "Hail", "Touchdown", "Punkin", "Lovey Day", "Holly Jolly"};
 const int effectListc = sizeof(effectList) / sizeof(effectList[0]);
 int effect_id = 1; //Skip visualiser
 String effectString = "solid";
@@ -107,7 +107,7 @@ int audio = A0;
 int loop_max = 0;
 int k = 255; // COLOR WHEEL POSITION
 int wheel_speed = 3; // COLOR WHEEL SPEED
-int decay = 0; // HOW MANY MS BEFORE ONE LIGHT DECAY
+int decay = 10; // HOW MANY MS BEFORE ONE LIGHT DECAY
 int decay_check = 0;
 long pre_react = 0; // NEW SPIKE CONVERSION
 long react = 0; // NUMBER OF LEDs BEING LIT
@@ -931,10 +931,6 @@ void effects() {
   // Middle Out
   if (effectString == "Music - Middle") {
     visualize_music(2);
-  }
-  // Custom for Fma965
-  if (effectString == "Music - Fma965") {
-    visualize_music(3);
   }
   // Out to Middle
   if (effectString == "Music - LR2M") {
@@ -1956,7 +1952,6 @@ void temp2rgb(unsigned int kelvin) {
 
 /**************************** MUSIC VISUALIZER **************************************************/
 // https://github.com/the-red-team/Arduino-FastLED-Music-Visualizer/blob/master/music_visualizer.ino
-// Modified by Fma965
 
 CRGB Scroll(int pos) {
   CRGB color (0, 0, 0);
@@ -1998,12 +1993,11 @@ void visualize_music(int LEDDirection)
   } else if (LEDDirection == 2) {
     RainbowMiddleOut(); //Middle Out
   } else if (LEDDirection == 3) {
-    RainbowFma965(); //Custom setup for Fma965
-  } else if (LEDDirection == 4) {
     RainbowOutMiddle(); //Out to Middle
   }
 
-  k = k - wheel_speed; // SPEED OF COLOR WHEEL
+  if ((millis() % 50) == 0)
+    k = k - wheel_speed; // SPEED OF COLOR WHEEL
   if (k < 0) // RESET COLOR WHEEL
     k = 255;
 
@@ -2014,11 +2008,6 @@ void visualize_music(int LEDDirection)
     decay_check = 0;
     if (react > 0)
       react--;
-  }
-  if (transitionTime <= 50) {
-    delay(25);
-  } else {
-    delay(transitionTime / 2);
   }
 }
 
@@ -2058,29 +2047,6 @@ void RainbowOutMiddle()
     } else {
       leds[0 + i] = CRGB(0, 0, 0);
       leds[config.numleds - i] = CRGB(0, 0, 0);
-    }
-  }
-  FastLED.show();
-}
-
-void RainbowFma965()
-{
-  for (int i = 0; i < 21; i++) {
-    if (i < react) {
-      leds[42 - i - 1] = Scroll((i * 256 / config.numleds + k) % 256);
-      leds[42 + i] = Scroll((i * 256 / config.numleds + k) % 256);
-    } else {
-      leds[42 - i - 1] = CRGB(0, 0, 0);
-      leds[42 + i] = CRGB(0, 0, 0);
-    }
-  }
-  for (int i = 0; i < 12; i++) {
-    if (i < react) {
-      leds[10 + i] = Scroll((i * 256 / config.numleds + k) % 256);
-      leds[10 - i - 1] = Scroll((i * 256 / config.numleds + k) % 256);
-    } else {
-      leds[10 + i] = CRGB(0, 0, 0);
-      leds[10 - i - 1] = CRGB(0, 0, 0);
     }
   }
   FastLED.show();
