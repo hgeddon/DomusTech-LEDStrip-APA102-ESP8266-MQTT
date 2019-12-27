@@ -31,6 +31,8 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
+#include "SSD1306Wire.h"
+
 
 struct {
   char ssid[32] = "";
@@ -57,6 +59,9 @@ const int mqtt_port = 1883;
 #define BUFFER_LEN 2880
 unsigned int localPort = 7777;
 char packetBuffer[BUFFER_LEN];
+
+//Screenf
+SSD1306Wire display(0x3c, 4, 5);
 
 //Establishing Local server at port 80 whenever required
 
@@ -442,6 +447,14 @@ long longPressTime = 6000;
 boolean buttonActive = false;
 boolean longPressActive = false;
 /********************************** START SETUP*****************************************/
+void write_display(String text, String ip) {
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.drawString(0, 10, ip);
+  display.setFont(ArialMT_Plain_24);
+  display.drawString(0, 26, text);
+  display.display();
+}
 void setup() {
   if (config.name[0] == 255)
   {
@@ -450,6 +463,9 @@ void setup() {
   pinMode(0, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
+  // Initialising the UI will init the display too.
+  display.init();
+  write_display("Init", "");
   Serial.begin(115200);
   Serial.print("Numleds :");
   Serial.print(config.numleds);
@@ -554,6 +570,13 @@ void led_flash() {
 }
 
 /********************************** START SETUP WIFI*****************************************/
+String IpAddress2String(const IPAddress& ipAddress)
+{
+  return String(ipAddress[0]) + String(".") + \
+         String(ipAddress[1]) + String(".") + \
+         String(ipAddress[2]) + String(".") + \
+         String(ipAddress[3])  ;
+}
 void setup_wifi() {
   delay(10);
   Serial.println("Disconnecting previously connected WiFi");
@@ -576,11 +599,13 @@ void setup_wifi() {
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
+    write_display("Sync", IpAddress2String(WiFi.localIP()));
     return;
   }
   else
   {
     Serial.println("Turning the HotSpot On");
+    write_display("AP", "192.168.4.1");
     setupAP();// Setup HotSpot
   }
 
@@ -1954,7 +1979,7 @@ CRGB Scroll(int pos) {
 void visualize_music(int LEDDirection)
 {
   //int audio_input = analogRead(audio) * MUSIC_SENSITIVITY;
-  int audio_input = analogRead(audio) * map(transitionTime, 1, 150, 2, 7);
+  int audio_input = (analogRead(audio) - 530) * map(transitionTime, 1, 150, 1, 14);
   if (audio_input > 0)
   {
     if (LEDDirection == 1) {
@@ -2064,6 +2089,7 @@ void RainbowFma965()
 //WIFI configurator
 bool testWifi(void)
 {
+  write_display("Wifi connection", config.ssid);
   int c = 0;
   unsigned long start_time = millis();
   Serial.println("Waiting for Wifi to connect");
