@@ -142,8 +142,8 @@ conda install numpy scipy pyqtgraph pyaudio
 The you can run `python-visualizer/visualization.py`
 ##### Ubuntu
 ```
-apt-get install python3 python3-pip
-pip install numpy scipy pyqtgraph pyaudio
+apt-get install python3 python3-pip portaudio19-dev python-pyaudio
+pip3 install numpy scipy pyqtgraph pyaudio --user
 ```
 
 The you can run `python-visualizer/visualization.py`
