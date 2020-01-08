@@ -18,6 +18,9 @@
       - FastLED
       - PubSubClient
       - ArduinoJSON
+      - ESPAsyncTCP
+      - ESPAsyncWebServer
+      - esp8266-oled-ssd1306
 */
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
