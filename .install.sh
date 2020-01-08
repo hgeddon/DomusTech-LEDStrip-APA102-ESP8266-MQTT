@@ -165,6 +165,8 @@ git clone https://github.com/me-no-dev/ESPAsyncTCP.git ~/Arduino/libraries/ESPAs
 
 git clone https://github.com/me-no-dev/ESPAsyncWebServer.git ~/Arduino/libraries/ESPAsyncWebServer
 
+git clone https://github.com/ThingPulse/esp8266-oled-ssd1306.git ~/Arduino/libraries/esp8266-oled-ssd1306
+
 # set the maximal compiler warning level
 echo -n "SET BUILD PREFERENCES: "
 DEPENDENCY_OUTPUT=$(arduino --pref "compiler.warning_level=all" --save-prefs 2>&1)
