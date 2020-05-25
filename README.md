@@ -59,9 +59,11 @@ The default speed for the effects is hard coded and is set when the light is fir
 
 <img src="https://i.imgur.com/mgnVneT.png | width=100" width="30%" height="30%" />
 
-3. Download [ESP8266Flasher.exe](https://github.com/BenoitAnastay/DomusTech-LEDStrip-APA102-ESP8266-MQTT/releases/latest)
+3. ~~Download [ESP8266Flasher.exe](https://github.com/BenoitAnastay/DomusTech-LEDStrip-APA102-ESP8266-MQTT/releases/latest)~~
 
-4. Plug your ESP8266 and click on `Flash`. (then you can disconnect the ESP8266 and plug it on a power suply)
+4. ~~Plug your ESP8266 and click on `Flash`. (then you can disconnect the ESP8266 and plug it on a power suply)~~
+
+(Use this [fork of nodemcu-pyflasher](https://github.com/BenoitAnastay/nodemcu-pyflasher) with both binary files in the same directory or compile it with Arduino IDE and SPIFS support) 
 
 5. When the led of the ESP8266 blink quickly use a computer or a smartphone to connect on the wifi. (it will be limited, no network)
 
