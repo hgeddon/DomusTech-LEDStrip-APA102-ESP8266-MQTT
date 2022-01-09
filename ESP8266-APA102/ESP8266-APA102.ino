@@ -22,6 +22,21 @@
       - ESPAsyncWebServer
       - esp8266-oled-ssd1306
 */
+
+/*
+ * Bug - keeps disconnecting from wifi, also doesn't turn on LEDs
+ * - test removing stuff - in this order
+ * 1. OLED SSD1306 - ! test !
+ * 2. Audio reactivity via analog input
+ * 3. OTA
+ * 4. HomeAssistant
+ * 
+ * Bare Bones requirements - in this order
+ * 1. FastLED 
+ * 2. Webserver control
+ * 3. Config Access Point
+ */
+
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 #define FASTLED_INTERRUPT_RETRY_COUNT 0
 #define ESP8266_SPI
@@ -34,8 +49,14 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
-#include "SSD1306Wire.h"
 
+#ifndef SAPSSID
+#define SAPSSID "Flashes"
+#define SAPPSK "geddnathan"
+#endif
+
+const char* sapssid = SAPSSID;
+const char* sappassword = SAPPSK; // must be longer than 5 char
 
 struct {
   char ssid[32] = "";
@@ -62,9 +83,6 @@ const int mqtt_port = 1883;
 #define BUFFER_LEN 2880
 unsigned int localPort = 7777;
 char packetBuffer[BUFFER_LEN];
-
-//Screenf
-SSD1306Wire display(0x3c, 4, 5);
 
 //Establishing Local server at port 80 whenever required
 
@@ -450,14 +468,6 @@ long longPressTime = 6000;
 boolean buttonActive = false;
 boolean longPressActive = false;
 /********************************** START SETUP*****************************************/
-void write_display(String text, String ip) {
-  display.clear();
-  display.setFont(ArialMT_Plain_16);
-  display.drawString(0, 10, ip);
-  display.setFont(ArialMT_Plain_24);
-  display.drawString(0, 26, text);
-  display.display();
-}
 void setup() {
   if (config.name[0] == 255)
   {
@@ -466,9 +476,6 @@ void setup() {
   pinMode(0, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
-  // Initialising the UI will init the display too.
-  display.init();
-  write_display("Init", "");
   Serial.begin(115200);
   Serial.print("Numleds :");
   Serial.print(config.numleds);
@@ -602,13 +609,11 @@ void setup_wifi() {
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
-    write_display("Sync", IpAddress2String(WiFi.localIP()));
     return;
   }
   else
   {
     Serial.println("Turning the HotSpot On");
-    write_display("AP", "192.168.4.1");
     setupAP();// Setup HotSpot
   }
 
@@ -2058,7 +2063,6 @@ void RainbowOutMiddle()
 //WIFI configurator
 bool testWifi(void)
 {
-  write_display("Wifi connection", config.ssid);
   int c = 0;
   unsigned long start_time = millis();
   Serial.println("Waiting for Wifi to connect");
@@ -2123,8 +2127,14 @@ void setupAP(void)
   }
   Serial.println("");
   delay(100);
-  WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), "");
+  //WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), softapPassword);
+  //WiFi.softAP("DomusTech-LED" + String(ESP.getChipId()), "");
+  WiFi.softAP(sapssid + String(ESP.getChipId()), sappassword);
+  //WiFi.softAP("Flashes" + String(ESP.getChipId()), "geddn");
+
   Serial.println("softap");
+  Serial.print("SSID: ");
+  Serial.println(sapssid + String(ESP.getChipId()));
 
   digitalWrite(LED_BUILTIN, LOW);
   launchWeb();
